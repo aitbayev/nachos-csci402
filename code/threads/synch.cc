@@ -106,9 +106,19 @@ Lock::Lock(char* debugName) {
 	name = debugName;
 	waitQueue = new List;
 	status = FREE;
+	lockOwner = NULL;
 }
 Lock::~Lock() {
 	delete waitQueue;	
+}
+
+bool Lock::isHeldByCurrentThread(){
+	if (lockOwner == currentThread){
+		return true;
+	}
+	else{
+		return false;
+	}
 }
 
 void Lock::Acquire() {
@@ -139,7 +149,7 @@ void Lock::Release() {
 		(void) interrupt->SetLevel(oldLevel);	// restore interrupts
 		return;
 	}
-	if (!waitQueue->isEmpty()){
+	if (!waitQueue->IsEmpty()){
 		thread = (Thread *)waitQueue->Remove(); //remove a thread from waitQueue
 		lockOwner = thread; //Make it lock owner
 		scheduler->ReadyToRun(thread); //wakeup the thread
