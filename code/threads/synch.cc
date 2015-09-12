@@ -24,6 +24,8 @@
 #include "copyright.h"
 #include "synch.h"
 #include "system.h"
+#include <iostream>
+using namespace std;
 
 //----------------------------------------------------------------------
 // Semaphore::Semaphore
@@ -100,10 +102,53 @@ Semaphore::V()
 // Dummy functions -- so we can compile our later assignments 
 // Note -- without a correct implementation of Condition::Wait(), 
 // the test case in the network assignment won't work!
-Lock::Lock(char* debugName) {}
-Lock::~Lock() {}
-void Lock::Acquire() {}
-void Lock::Release() {}
+Lock::Lock(char* debugName) {
+	name = debugName;
+	waitQueue = new List;
+	status = FREE;
+}
+Lock::~Lock() {
+	delete waitQueue;	
+}
+
+void Lock::Acquire() {
+	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
+
+	if(lockOwner == currentThread){ //if current thread is a lock owner
+		(void) interrupt->SetLevel(oldLevel); //restore interrupts
+		return;
+	}
+	if (status == FREE){ //if lock is available
+		status = BUSY; //make it unavailable
+		lockOwner = currentThread; //make current thread the owner	
+	}
+	else{
+		waitQueue->Append((void *)currentThread);
+		currentThread->Sleep();
+	}
+
+	(void) interrupt->SetLevel(oldLevel);	// restore interrupts
+}
+
+void Lock::Release() {
+	Thread *thread;
+	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
+
+	if(lockOwner != currentThread){
+		cout<< currentThread->getName() <<" thread is not lock owner";
+		(void) interrupt->SetLevel(oldLevel);	// restore interrupts
+		return;
+	}
+	if (!waitQueue->isEmpty()){
+		thread = (Thread *)waitQueue->Remove(); //remove a thread from waitQueue
+		lockOwner = thread; //Make it lock owner
+		scheduler->ReadyToRun(thread); //wakeup the thread
+	} else{
+		status = FREE; //lock is available
+		lockOwner = NULL; // resetting lockowner to null
+	}
+	(void) interrupt->SetLevel(oldLevel);	// restore interrupts
+}
 
 Condition::Condition(char* debugName) { }
 Condition::~Condition() { }
