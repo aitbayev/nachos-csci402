@@ -160,8 +160,75 @@ void Lock::Release() {
 	(void) interrupt->SetLevel(oldLevel);	// restore interrupts
 }
 
-Condition::Condition(char* debugName) { }
-Condition::~Condition() { }
-void Condition::Wait(Lock* conditionLock) { ASSERT(FALSE); }
-void Condition::Signal(Lock* conditionLock) { }
-void Condition::Broadcast(Lock* conditionLock) { }
+Condition::Condition(char* debugName) { 
+	name = debugName;
+	queue = new List;
+}
+
+Condition::~Condition() { 
+	delete queue;
+}
+void Condition::Wait(Lock* conditionLock) { //ASSERT(FALSE); 
+	waitingLock = new Lock; //?
+	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
+	if (conditionLock == null){
+		cout << "lock equals null"; //??
+		(void)interrupt->SetLevel(oldLevel); //re-enable interrupt
+		return
+	}
+	if (waitingLock == null){
+		//no one waiting
+		waitingLock = conditionLock;
+	}
+	if (waitingLock != conditionLock)
+	{
+		cout << "waiting lock does not equal lock";  //??
+		(void)interrupt->SetLevel(oldLevel); //re-enalbe interrupt
+		return
+	}
+	//ok to wait
+	//add myself to CV waitQ
+	conditionLock->Release();
+	currentThread->Sleep(); //do I need something in front like semaphore?
+	conditionLock->Acquire();
+	(void)interrupt->SetLevel(oldLevel); //re-enable interrupt
+}
+
+void Condition::Signal(Lock* conditionLock) { 
+	waitingLock = new Lock; //?
+	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
+	if (waitingLock == null){
+		(void)interrupt->SetLevel(oldLevel); //re-enable interrupts
+		return
+	}
+	if (waitingLock != conditionLock)
+	{
+		cout << "conditionLock does not equal to waitingLock"; //??
+		(void)interrupt->SetLevel(oldLevel); //re-enable interrupt
+		return
+	}
+	//wake up 1 waiting thread
+	//remove 1 thread from waitQ
+	//put on readyQ - scheduler->ReadyToRun()
+	if (!queue->IsEmpty())
+	{
+		waitingLock = null;
+	}
+	(void)interrupt->SetLevel(oldLevel); //re-enable interrupts
+}
+void Condition::Broadcast(Lock* conditionLock) { 
+	waitingLock = new Lock; //??
+	IntStatus oldLevel = interupt->SetLevel(IntOff); //disable interrupts
+	if (conditionLock == null){
+		cout << "conditionLock equals null"; //??
+	}
+	if (conditionLock != waitingLock){
+		cout << "conditionLock does not equal to waitingLock"; //??
+		(void)interrupt->SetLevel(oldLevel); //re-enable interrupts
+		return
+	}
+	(void)interrupt->SetLevel(oldLevel);	// re-enable interrupts
+	while (!queue->IsEmpty()){
+		Signal(conditionLock);
+	}
+}
