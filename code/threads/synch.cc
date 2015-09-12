@@ -185,10 +185,9 @@ void Condition::Wait(Lock* conditionLock) { //ASSERT(FALSE);
 		(void)interrupt->SetLevel(oldLevel); //re-enalbe interrupt
 		return
 	}
-	//add myself to CV waitQ
-	conditionLock->Release();
 	queue->Append((void *)currentThread);
-	currentThread->Sleep(); //do I need something in front like semaphore?
+	conditionLock->Release();
+	currentThread->Sleep(); 
 	conditionLock->Acquire();
 	(void)interrupt->SetLevel(oldLevel); //re-enable interrupt
 }
@@ -202,24 +201,25 @@ void Condition::Signal(Lock* conditionLock) {
 	}
 	if (waitingLock != conditionLock)
 	{
-		cout << "conditionLock does not equal to waitingLock"; //??
+		cout << " Error: conditionLock does not equal to waitingLock"; //??
 		(void)interrupt->SetLevel(oldLevel); //re-enable interrupt
 		return
 	}
+	//wakeup 1 waiting thread??
 	thread = (Thread *)queue->Remove(); //remove a thread from waitQueue
-	lockOwner = thread; //Make it lock owner
-	scheduler->ReadyToRun(thread); //wakeup the thread
-	//put on ready list?
+	scheduler->ReadyToRun(thread); //put on readyQueue
 	if (!queue->IsEmpty())
 	{
 		waitingLock = null;
 	}
 	(void)interrupt->SetLevel(oldLevel); //re-enable interrupts
 }
+
 void Condition::Broadcast(Lock* conditionLock) { 
 	IntStatus oldLevel = interupt->SetLevel(IntOff); //disable interrupts
 	if (conditionLock == null){
-		cout << "conditionLock equals null"; //??
+		(void)interrupt->SetLevel(oldLevel); //re-enable interrupts
+		return
 	}
 	if (conditionLock != waitingLock){
 		cout << "conditionLock does not equal to waitingLock"; //??
