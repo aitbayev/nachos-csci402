@@ -163,21 +163,20 @@ void Lock::Release() {
 Condition::Condition(char* debugName) { 
 	name = debugName;
 	queue = new List;
+	waitingLock = new Lock;
 }
 
 Condition::~Condition() { 
 	delete queue;
 }
 void Condition::Wait(Lock* conditionLock) { //ASSERT(FALSE); 
-	waitingLock = new Lock; //?
 	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
 	if (conditionLock == null){
 		cout << "lock equals null"; //??
 		(void)interrupt->SetLevel(oldLevel); //re-enable interrupt
 		return
 	}
-	if (waitingLock == null){
-		//no one waiting
+	if (waitingLock == null){ //no one waiting
 		waitingLock = conditionLock;
 	}
 	if (waitingLock != conditionLock)
@@ -186,16 +185,16 @@ void Condition::Wait(Lock* conditionLock) { //ASSERT(FALSE);
 		(void)interrupt->SetLevel(oldLevel); //re-enalbe interrupt
 		return
 	}
-	//ok to wait
 	//add myself to CV waitQ
 	conditionLock->Release();
+	queue->Append((void *)currentThread);
 	currentThread->Sleep(); //do I need something in front like semaphore?
 	conditionLock->Acquire();
 	(void)interrupt->SetLevel(oldLevel); //re-enable interrupt
 }
 
 void Condition::Signal(Lock* conditionLock) { 
-	waitingLock = new Lock; //?
+	Thread *thread;
 	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
 	if (waitingLock == null){
 		(void)interrupt->SetLevel(oldLevel); //re-enable interrupts
@@ -207,9 +206,10 @@ void Condition::Signal(Lock* conditionLock) {
 		(void)interrupt->SetLevel(oldLevel); //re-enable interrupt
 		return
 	}
-	//wake up 1 waiting thread
-	//remove 1 thread from waitQ
-	//put on readyQ - scheduler->ReadyToRun()
+	thread = (Thread *)queue->Remove(); //remove a thread from waitQueue
+	lockOwner = thread; //Make it lock owner
+	scheduler->ReadyToRun(thread); //wakeup the thread
+	//put on ready list?
 	if (!queue->IsEmpty())
 	{
 		waitingLock = null;
@@ -217,7 +217,6 @@ void Condition::Signal(Lock* conditionLock) {
 	(void)interrupt->SetLevel(oldLevel); //re-enable interrupts
 }
 void Condition::Broadcast(Lock* conditionLock) { 
-	waitingLock = new Lock; //??
 	IntStatus oldLevel = interupt->SetLevel(IntOff); //disable interrupts
 	if (conditionLock == null){
 		cout << "conditionLock equals null"; //??
