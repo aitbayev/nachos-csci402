@@ -114,7 +114,7 @@ Lock::~Lock() {
 void Lock::Acquire() {
 	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
 
-	if(lockOwner == currentThread){ //if current thread is a lock owner
+	if(isHeldByCurrentThread()){ //if current thread is a lock owner
 		(void) interrupt->SetLevel(oldLevel); //restore interrupts
 		return;
 	}
@@ -134,7 +134,7 @@ void Lock::Release() {
 	Thread *thread;
 	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
 
-	if(lockOwner != currentThread){
+	if(!isHeldByCurrentThread()){
 		cout<< currentThread->getName() <<" thread is not lock owner";
 		(void) interrupt->SetLevel(oldLevel);	// restore interrupts
 		return;
