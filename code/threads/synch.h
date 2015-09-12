@@ -21,6 +21,8 @@
 #include "thread.h"
 #include "list.h"
 
+ enum LockStatus { FREE, BUSY };	// Lock status Free ot Busy
+
 // The following class defines a "semaphore" whose value is a non-negative
 // integer.  The semaphore has only two operations P() and V():
 //
@@ -72,14 +74,10 @@ class Lock {
     void Acquire(); // these are the only operations on a lock
     void Release(); // they are both *atomic*
 	
-    bool isHeldByCurrentThread(){	// true if the current thread
-	if (lockOwner == currentThread){	// holds this lock. 
-		return true;
-	}
-	else{
-		return false;
-	}	
-};				
+    bool isHeldByCurrentThread();	//true if the current thread
+					// holds this lock.  Useful for
+					// checking in Release, and in
+					// Condition variable ops below.
     void setStatus(LockStatus st){	// set Lock status
  	status = st; 
 }
@@ -87,9 +85,8 @@ class Lock {
   private:
     char* name;				// for debugging
     List *waitQueue;			// queue of waiting threads
-    enum LockStatus {FREE, BUSY};	// Lock status Free ot Busy
     LockStatus status;			// Status variable
-    Thread *lockOwner = NULL;
+    Thread *lockOwner;
 };
 
 // The following class defines a "condition variable".  A condition
