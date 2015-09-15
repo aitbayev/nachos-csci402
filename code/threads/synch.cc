@@ -143,9 +143,8 @@ void Lock::Acquire() {
 void Lock::Release() {
 	Thread *thread;
 	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
-
 	if(!isHeldByCurrentThread()){
-		cout<< currentThread->getName() <<" thread is not lock owner";
+		cout<< currentThread->getName() <<" thread is not lock owner \n";
 		(void) interrupt->SetLevel(oldLevel);	// restore interrupts
 		return;
 	}
@@ -154,7 +153,7 @@ void Lock::Release() {
 		lockOwner = thread; //Make it lock owner
 		scheduler->ReadyToRun(thread); //wakeup the thread
 	} else{
-		status = FREE; //lock is available
+		status = FREE; //lock is available again
 		lockOwner = NULL; // resetting lockowner to null
 	}
 	(void) interrupt->SetLevel(oldLevel);	// restore interrupts
@@ -163,7 +162,8 @@ void Lock::Release() {
 Condition::Condition(char* debugName) { 
 	name = debugName;
 	queue = new List;
-	waitingLock = new Lock("waitingLock");
+	waitingLock = NULL;
+	
 }
 
 Condition::~Condition() { 
@@ -171,17 +171,19 @@ Condition::~Condition() {
 }
 void Condition::Wait(Lock* conditionLock) { //ASSERT(FALSE); 
 	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
+	
 	if (conditionLock == NULL){
-		cout << "lock equals null"; //??
+		cout << "lock equals null \n"; //??
 		(void)interrupt->SetLevel(oldLevel); //re-enable interrupt
 		return;
 	}
 	if (waitingLock == NULL){ //no one waiting
+		cout<<"waiting lock is null, no one is waiting \n";
 		waitingLock = conditionLock;
 	}
 	if (waitingLock != conditionLock)
 	{
-		cout << "waiting lock does not equal lock";  //??
+		cout << "waiting lock does not equal lock \n";  //??
 		(void)interrupt->SetLevel(oldLevel); //re-enalbe interrupt
 		return;
 	}
@@ -196,19 +198,22 @@ void Condition::Signal(Lock* conditionLock) {
 	Thread *thread;
 	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
 	if (waitingLock == NULL){
+		cout<<conditionLock->getName();
+		cout << " Error: waitingLock is NULL, nothing is waiting signal \n"; //??
+
 		(void)interrupt->SetLevel(oldLevel); //re-enable interrupts
 		return;
 	}
 	if (waitingLock != conditionLock)
 	{
-		cout << " Error: conditionLock does not equal to waitingLock"; //??
+		cout << " Error: conditionLock does not equal to waitingLock \n"; //??
 		(void)interrupt->SetLevel(oldLevel); //re-enable interrupt
 		return;
 	}
 	//wakeup 1 waiting thread??
 	thread = (Thread *)queue->Remove(); //remove a thread from waitQueue
 	scheduler->ReadyToRun(thread); //put on readyQueue
-	if (!queue->IsEmpty())
+	if (queue->IsEmpty())
 	{
 		waitingLock = NULL;
 	}
@@ -218,16 +223,20 @@ void Condition::Signal(Lock* conditionLock) {
 void Condition::Broadcast(Lock* conditionLock) { 
 	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
 	if (conditionLock == NULL){
+		cout << "conditionLock is null broadcast \n";
 		(void)interrupt->SetLevel(oldLevel); //re-enable interrupts
 		return;
 	}
 	if (conditionLock != waitingLock){
-		cout << "conditionLock does not equal to waitingLock"; //??
+		cout << "conditionLock does not equal to waitingLock broadcast\n"; //??
 		(void)interrupt->SetLevel(oldLevel); //re-enable interrupts
 		return;
 	}
 	(void)interrupt->SetLevel(oldLevel);	// re-enable interrupts
+
 	while (!queue->IsEmpty()){
 		Signal(conditionLock);
 	}
+
+
 }
