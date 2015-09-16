@@ -12,6 +12,11 @@
 #include "copyright.h"
 #include "system.h"
 #include "test_code.cc"
+#include <iostream>
+#include <string>
+#include <cstdlib>
+#include "synch.h"
+using namespace std;
 
 //----------------------------------------------------------------------
 // SimpleThread
@@ -21,6 +26,128 @@
 //	"which" is simply a number identifying the thread, for debugging
 //	purposes.
 //----------------------------------------------------------------------
+enum CustomerState {arrivedAtOffice, atAppClerk, atPictureClerk, atPassportClerk, atCashier};
+enum AppClerkState {busy, available, onBreak};
+Lock AppClerkLineLock("AppClerkLineLock");
+Condition AppClerkLineCV("AppClerkLineCV");
+
+class Customer{
+
+private:
+	string name;
+	int money;
+	bool application;
+	int social_security;
+	float picture;
+	int myLine;
+	CustomerState state;
+
+public:
+
+Customer(string name, int social_security);
+~Customer();
+string getName();
+int getMoney();
+void setMoney(int money);
+int getSocialSecurity();
+float getPictureDisliking();
+bool getApplication();
+void setPictureDisliking(float pic);
+
+};
+
+Customer::Customer(string n, int ss){
+	this->name = n;
+	this->social_security = ss;
+	application = true;
+	int money_rand = rand() % 4;
+	if (money_rand == 0){
+		money = 100;
+}
+	else if (money_rand == 1){
+		money = 600;
+}
+	else if (money_rand == 2){
+		money = 1100;
+}
+	else if (money_rand == 3){
+		money = 1600;
+}
+	state = arrivedAtOffice;
+}
+
+Customer::~Customer(){
+
+}
+
+string Customer::getName(){
+	return name;
+}
+
+int Customer::getMoney(){
+	return money;
+}
+
+void Customer::setMoney(int m){
+	this->money = m; 
+}
+
+int Customer::getSocialSecurity(){
+	return social_security;
+}
+float Customer::getPictureDisliking(){
+	return picture;
+}
+bool Customer::getApplication(){
+	return application;
+}
+void  Customer::setPictureDisliking(float pic){
+	this->picture = pic;
+}
+
+class ApplicationClerk{
+
+private:
+	string name;
+	int AppClerkLineCount;
+	int money;
+	
+public:
+
+	ApplicationClerk(string name);
+	~ApplicationClerk();
+	string getName();
+	int getMoney();
+	void setMoney(int money);
+	AppClerkState state;
+	int lineCount;
+
+};
+
+ApplicationClerk::ApplicationClerk(string n){
+	this->name = n;
+	state = available;
+	money = 0;
+	lineCount = 0;
+}
+
+ApplicationClerk::~ApplicationClerk(){
+
+}
+
+string ApplicationClerk::getName(){
+	return name;
+}
+
+int ApplicationClerk::getMoney(){
+	return money;
+}
+
+void ApplicationClerk::setMoney(int m){
+	this->money = m; 
+}
+
+ApplicationClerk *app_clerk =NULL;
 
 void
 SimpleThread(int which)
@@ -31,13 +158,48 @@ SimpleThread(int which)
 	printf("*** thread %d looped %d times\n", which, num);
         currentThread->Yield();
     }
-}
+} 
 
 //----------------------------------------------------------------------
 // ThreadTest
 // 	Set up a ping-pong between two threads, by forking a thread 
 //	to call SimpleThread, and then calling SimpleThread ourselves.
 //----------------------------------------------------------------------
+
+void goToLine(){
+	AppClerkLineLock.Acquire();
+	Customer *c = new Customer("customer1", 00000000);
+		if(app_clerk->state == busy){
+			cout<< c->getName()<<" App clerk is busy \n";
+			app_clerk->lineCount++;	
+			AppClerkLineCV.Wait(&AppClerkLineLock);
+			app_clerk->lineCount--;	
+		}
+		else{
+			cout<< c->getName()<<" App clerk is available \n";
+			app_clerk->state = busy;
+		}
+	AppClerkLineLock.Release();
+}
+
+void getCustomer(){
+	ApplicationClerk *appClerk = new ApplicationClerk("appClerk1");
+	app_clerk = appClerk;
+	while(true){
+		AppClerkLineLock.Acquire();
+		if(appClerk->lineCount>0){
+			cout<< appClerk->getName()<<" someone is in my Line \n";
+			AppClerkLineCV.Signal(&AppClerkLineLock);
+			appClerk->state = busy;
+			break;
+		}
+		else{
+			cout<< appClerk->getName()<<" no one is in my line \n";
+			appClerk->state = available;
+		}
+
+	}
+}
 
 void
 ThreadTest()
@@ -48,5 +210,12 @@ ThreadTest()
 
     t->Fork(SimpleThread, 1);
     SimpleThread(0);
+}
+
+void Problem2(){
+	Thread *appClerk = new Thread("appClerk1");
+	appClerk->Fork((VoidFunctionPtr)getCustomer,0);
+	Thread *customer = new Thread("customer1");
+	customer->Fork((VoidFunctionPtr)goToLine,0);
 }
 

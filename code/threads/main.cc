@@ -89,7 +89,7 @@ main(int argc, char **argv)
 //#endif
 
 #ifdef THREADS
-extern void Part2(void), TestSuite(void);
+extern void Problem2(void), TestSuite(void);
 #endif
 
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
@@ -99,9 +99,9 @@ extern void Part2(void), TestSuite(void);
 #ifdef THREADS
         if (!strcmp(*argv, "-T"))               // Test Suite
             TestSuite();
-       // if (!strcmp(*argv, "-P2"))               // Problem 2
-         //   Problem2();
-#endif //THREADS
+        if (!strcmp(*argv, "-P2"))               // Problem 2
+            Problem2();
+#endif THREADS
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
 	    ASSERT(argc > 1);
