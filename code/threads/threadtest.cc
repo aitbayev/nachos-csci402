@@ -16,6 +16,8 @@
 #include <string>
 #include <cstdlib>
 #include "synch.h"
+
+#include "list.h"
 using namespace std;
 
 //----------------------------------------------------------------------
@@ -26,37 +28,22 @@ using namespace std;
 //	"which" is simply a number identifying the thread, for debugging
 //	purposes.
 //----------------------------------------------------------------------
+
 enum CustomerState {arrivedAtOffice, atAppClerk, atPictureClerk, atPassportClerk, atCashier};
 enum AppClerkState {busy, available, onBreak};
 Lock AppClerkLineLock("AppClerkLineLock");
 Condition AppClerkLineCV("AppClerkLineCV");
+Lock AppClerkLock("AppClerkLock");
+List customer_list;
 
-class Customer{
-
-private:
+struct Customer{
 	string name;
 	int money;
 	bool application;
 	int social_security;
-	float picture;
-	int myLine;
 	CustomerState state;
-
-public:
-
-Customer(string name, int social_security);
-~Customer();
-string getName();
-int getMoney();
-void setMoney(int money);
-int getSocialSecurity();
-float getPictureDisliking();
-bool getApplication();
-void setPictureDisliking(float pic);
-
-};
-
-Customer::Customer(string n, int ss){
+	
+Customer(string n, int ss){
 	this->name = n;
 	this->social_security = ss;
 	application = true;
@@ -75,79 +62,26 @@ Customer::Customer(string n, int ss){
 }
 	state = arrivedAtOffice;
 }
-
-Customer::~Customer(){
-
-}
-
-string Customer::getName(){
-	return name;
-}
-
-int Customer::getMoney(){
-	return money;
-}
-
-void Customer::setMoney(int m){
-	this->money = m; 
-}
-
-int Customer::getSocialSecurity(){
-	return social_security;
-}
-float Customer::getPictureDisliking(){
-	return picture;
-}
-bool Customer::getApplication(){
-	return application;
-}
-void  Customer::setPictureDisliking(float pic){
-	this->picture = pic;
-}
-
-class ApplicationClerk{
-
-private:
-	string name;
-	int AppClerkLineCount;
-	int money;
-	
-public:
-
-	ApplicationClerk(string name);
-	~ApplicationClerk();
-	string getName();
-	int getMoney();
-	void setMoney(int money);
-	AppClerkState state;
-	int lineCount;
-
 };
 
-ApplicationClerk::ApplicationClerk(string n){
-	this->name = n;
-	state = available;
-	money = 0;
-	lineCount = 0;
-}
+struct ApplicationClerk{
 
-ApplicationClerk::~ApplicationClerk(){
+	string name;
+	int lineCount;
+	int money;
+	AppClerkState state;
+	
+	
+	ApplicationClerk(string n){
+		this->name = n;
+		this->money = 0;
+		this->state = busy;
+		this->lineCount = 0;
+	}
+	
+};
 
-}
-
-string ApplicationClerk::getName(){
-	return name;
-}
-
-int ApplicationClerk::getMoney(){
-	return money;
-}
-
-void ApplicationClerk::setMoney(int m){
-	this->money = m; 
-}
-
-ApplicationClerk *app_clerk =NULL;
+ApplicationClerk *app_clerk = NULL;
 
 void
 SimpleThread(int which)
@@ -168,17 +102,18 @@ SimpleThread(int which)
 
 void goToLine(){
 	AppClerkLineLock.Acquire();
-	Customer *c = new Customer("customer1", 00000000);
+	Customer *c = new Customer("customer1", 11111111);
 		if(app_clerk->state == busy){
-			cout<< c->getName()<<" App clerk is busy \n";
+			cout<< c->name<<" App clerk is busy \n";
 			app_clerk->lineCount++;	
 			AppClerkLineCV.Wait(&AppClerkLineLock);
 			app_clerk->lineCount--;	
 		}
 		else{
-			cout<< c->getName()<<" App clerk is available \n";
+			cout<< c->name<<" App clerk is available \n";
 			app_clerk->state = busy;
 		}
+	
 	AppClerkLineLock.Release();
 }
 
@@ -188,17 +123,19 @@ void getCustomer(){
 	while(true){
 		AppClerkLineLock.Acquire();
 		if(appClerk->lineCount>0){
-			cout<< appClerk->getName()<<" someone is in my Line \n";
+			cout<< appClerk->name<<" someone is in my Line \n";
 			AppClerkLineCV.Signal(&AppClerkLineLock);
 			appClerk->state = busy;
-			break;
+			
 		}
 		else{
-			cout<< appClerk->getName()<<" no one is in my line \n";
+			cout<< appClerk->name<<" nobody is in my line \n";
 			appClerk->state = available;
+			
 		}
-
+		AppClerkLineLock.Release();
 	}
+	
 }
 
 void
@@ -217,5 +154,8 @@ void Problem2(){
 	appClerk->Fork((VoidFunctionPtr)getCustomer,0);
 	Thread *customer = new Thread("customer1");
 	customer->Fork((VoidFunctionPtr)goToLine,0);
+	customer = new Thread("customer2");
+	customer->Fork((VoidFunctionPtr)goToLine,0);
+	
 }
 
