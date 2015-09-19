@@ -16,8 +16,8 @@
 #include <string>
 #include <cstdlib>
 #include "synch.h"
+#include <vector>
 
-#include "list.h"
 using namespace std;
 
 //----------------------------------------------------------------------
@@ -29,19 +29,37 @@ using namespace std;
 //	purposes.
 //----------------------------------------------------------------------
 
-enum CustomerState {arrivedAtOffice, atAppClerk, atPictureClerk, atPassportClerk, atCashier};
-enum AppClerkState {busy, available, onBreak};
-Lock AppClerkLineLock("AppClerkLineLock");
-Condition AppClerkLineCV("AppClerkLineCV");
-Lock AppClerkLock("AppClerkLock");
-List customer_list;
+enum CustomerState {atAppClerk, atPictureClerk, atPassportClerk, atCashier};
+enum ClerkState {busy, available, onBreak};
+
+
+
+struct CustomerData{
+	string name;
+	int SSN;
+	bool application;
+	bool picture;
+	bool verified;
+	bool got_passport;
+	
+	CustomerData(int s){
+		this->SSN = s;
+	}
+	
+};
+
+//vector <*CustomerData> customer_data;
+int customers_count = 0;
 
 struct Customer{
 	string name;
 	int money;
 	bool application;
 	int social_security;
-	CustomerState state;
+	bool atAppClerk;
+	bool atPicClerk;
+	bool atPassClerk;
+	bool atCashier;
 	
 Customer(string n, int ss){
 	this->name = n;
@@ -60,16 +78,23 @@ Customer(string n, int ss){
 	else if (money_rand == 3){
 		money = 1600;
 }
-	state = arrivedAtOffice;
+	 atAppClerk = false;
+	 atPicClerk = false;
+	 atPassClerk = false;
+	 atCashier = false;
+	
 }
 };
+
+
 
 struct ApplicationClerk{
 
 	string name;
 	int lineCount;
 	int money;
-	AppClerkState state;
+	ClerkState state;
+	int ssn;
 	
 	
 	ApplicationClerk(string n){
@@ -79,9 +104,48 @@ struct ApplicationClerk{
 		this->lineCount = 0;
 	}
 	
+	
 };
 
-ApplicationClerk *app_clerk = NULL;
+
+struct PictureClerk{
+
+	string name;
+	int lineCount;
+	int money;
+	ClerkState state;
+	
+	PictureClerk(string n){
+		this->name = n;
+		this->money = 0;
+		this->state = busy;
+		this->lineCount = 0;
+	}
+};
+
+vector<CustomerData*> customer_data;
+int counter = 0;
+
+vector<Customer*> customers;
+
+//application clerks and their locks and CV
+vector<ApplicationClerk*> application_clerks;
+
+vector<Lock*> AppClerkLock;
+vector<Condition*> AppClerkCV;
+vector<Lock*> AppClerkLineLock;
+vector<Condition*> AppClerkLineCV;
+Lock PickAppClerkLineLock("PickAppClerkLineLock");
+
+
+//picture clerk and their data
+vector<PictureClerk*> picture_clerks;
+vector<Lock*> PicClerkLock;
+vector<Condition*> PicClerkCV;
+Lock PicClerkLineLock("PicClerkLineLock");
+Condition PicClerkLineCV("PicClerkLineCV");
+
+
 
 void
 SimpleThread(int which)
@@ -100,41 +164,87 @@ SimpleThread(int which)
 //	to call SimpleThread, and then calling SimpleThread ourselves.
 //----------------------------------------------------------------------
 
-void goToLine(){
-	AppClerkLineLock.Acquire();
-	Customer *c = new Customer("customer1", 11111111);
-		if(app_clerk->state == busy){
-			cout<< c->name<<" App clerk is busy \n";
-			app_clerk->lineCount++;	
-			AppClerkLineCV.Wait(&AppClerkLineLock);
-			app_clerk->lineCount--;	
-		}
-		else{
-			cout<< c->name<<" App clerk is available \n";
-			app_clerk->state = busy;
-		}
+
+
+//customer
+void goToAppClerkLine(int arg){
+
 	
-	AppClerkLineLock.Release();
+	int myLine = -1;
+	int lineSize = 1000;
+	PickAppClerkLineLock.Acquire();
+	for (unsigned int i=0; i<application_clerks.size(); i++){
+		if(application_clerks[i]->lineCount<lineSize && application_clerks[i]->state != onBreak){
+			myLine = i;
+			lineSize = application_clerks[i]->lineCount;
+		}
+	}
+	PickAppClerkLineLock.Release();
+	AppClerkLineLock[myLine]->Acquire();
+ 	if(application_clerks[myLine]->state == busy){
+			application_clerks[myLine]->lineCount++;	
+			cout<<currentThread->getName()<<" has gotten in regular line for "<< application_clerks[myLine]->name<<"\n";
+			AppClerkLineCV[myLine]->Wait(AppClerkLineLock[myLine]);
+			application_clerks[myLine]->lineCount--;	
+	}
+	else{
+			cout<<currentThread->getName()<<"at the register of "<<application_clerks[myLine]->name<<endl;
+		 	application_clerks[myLine]->state = busy;
+	}
+	AppClerkLineLock[myLine]->Release();
+	
+	AppClerkLock[myLine]->Acquire();
+	application_clerks[myLine]->ssn = arg;
+	cout<<currentThread->getName()<<" has given SSN ["<<arg<<"] to ApplicationClerk["<<myLine<<"]"<<endl;
+	AppClerkCV[myLine]->Signal(AppClerkLock[myLine]);
+	
+	AppClerkCV[myLine]->Wait(AppClerkLock[myLine]);
+	customers[myLine]->atAppClerk = true;
+	AppClerkLock[myLine]->Release();
+	
 }
 
-void getCustomer(){
-	ApplicationClerk *appClerk = new ApplicationClerk("appClerk1");
-	app_clerk = appClerk;
-	while(true){
-		AppClerkLineLock.Acquire();
-		if(appClerk->lineCount>0){
-			cout<< appClerk->name<<" someone is in my Line \n";
-			AppClerkLineCV.Signal(&AppClerkLineLock);
-			appClerk->state = busy;
-			
+//clerk
+void getCustomer(int arg){
+
+	 while(true){
+ 		int myLine = arg;
+		AppClerkLineLock[myLine]->Acquire();	
+		
+ 		 if(application_clerks[myLine]->lineCount>0){
+ 			cout<< currentThread->getName()<<" has signalled a Customer to come to their counter \n";
+ 			AppClerkLineCV[myLine]->Signal(AppClerkLineLock[myLine]);
+ 			application_clerks[myLine]->state = busy;
 		}
-		else{
-			cout<< appClerk->name<<" nobody is in my line \n";
-			appClerk->state = available;
-			
+  		else{
+ 			application_clerks[myLine]->state = available;
+ 		}	 
+ 	
+ 		AppClerkLock[myLine]->Acquire();
+		AppClerkLineLock[myLine]->Release();
+		
+ //wait for Customer Data 
+		AppClerkCV[myLine]->Wait(AppClerkLock[myLine]); 
+		cout<<currentThread->getName()<<" has received SSN ["<<application_clerks[myLine]->ssn<<"] from Customer ["<<application_clerks[myLine]->ssn<<"]"<<endl;
+
+		CustomerData *c_d = new CustomerData(application_clerks[myLine]->ssn);
+		c_d->application = true;
+		customer_data.push_back(c_d);
+		
+		for(int i=0; i<20; i++){
+			currentThread->Yield();
 		}
-		AppClerkLineLock.Release();
-	}
+		
+		//yield
+//do my job, customer now waiting 
+		
+		AppClerkCV[myLine]->Signal(AppClerkLock[myLine]);
+		cout<<currentThread->getName()<<" has recorded a completed application for Customer["<<application_clerks[myLine]->ssn<<"]"<<endl;
+		//AppClerkCV[myLine]->Wait(AppClerkLock[myLine]);
+		
+		AppClerkLock[myLine]->Release();
+}
+
 	
 }
 
@@ -148,14 +258,66 @@ ThreadTest()
     t->Fork(SimpleThread, 1);
     SimpleThread(0);
 }
+char *name;
+char *app_name;
 
 void Problem2(){
-	Thread *appClerk = new Thread("appClerk1");
-	appClerk->Fork((VoidFunctionPtr)getCustomer,0);
-	Thread *customer = new Thread("customer1");
-	customer->Fork((VoidFunctionPtr)goToLine,0);
-	customer = new Thread("customer2");
-	customer->Fork((VoidFunctionPtr)goToLine,0);
+
+	Thread *thread;
 	
+	Customer *customer;
+	
+	ApplicationClerk *app_clerk;
+	Lock *appClerkLineLock;
+    Condition *appClerkLineCV;
+    Lock *appClerkLock;
+    Condition *appClerkCV;
+
+	for(int i=0; i<2; i++){
+		name = new char [20];
+		app_name = new char[20];
+		sprintf(app_name,"ApplicationClerk[%d]",i);
+		
+        thread = new Thread(app_name);
+		thread->Fork((VoidFunctionPtr)getCustomer,i);
+		
+		app_clerk = new ApplicationClerk(app_name);
+		application_clerks.push_back(app_clerk);
+		
+		sprintf(name,"AppClerkLineLock[%d]",i);
+		
+		appClerkLineLock  = new Lock(name);
+		AppClerkLineLock.push_back(appClerkLineLock);
+		
+		sprintf(name,"AppClerkLineCV[%d]",i);
+		
+		appClerkLineCV = new Condition(name);
+		AppClerkLineCV.push_back(appClerkLineCV);
+		
+		sprintf(name,"AppClerkLock[%d]",i);
+		
+		appClerkLock  = new Lock(name);
+		AppClerkLock.push_back(appClerkLock);
+		
+		sprintf(name,"AppClerkCV[%d]",i);
+		
+		appClerkCV  = new Condition(name);
+		AppClerkCV.push_back(appClerkCV);
+		
+		name="";
+	}
+	
+	
+	for(int i=0; i<3; i++){
+		name = new char [20];
+		sprintf(name,"Customer[%d]",i);
+		
+		thread = new Thread(name);
+		thread->Fork((VoidFunctionPtr)goToAppClerkLine,i);
+	
+		customer = new Customer(name, i);
+		customers.push_back(customer);
+	}
+		
 }
 
