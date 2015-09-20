@@ -126,7 +126,7 @@ void Lock::Acquire() {
 
 	if(isHeldByCurrentThread()){ //if current thread is a lock owner
 		(void) interrupt->SetLevel(oldLevel); //restore interrupts
-	//	cout<<currentThread->getName()<<" I'm the lock owner \n";
+		cout<<currentThread->getName()<<" I'm the lock owner \n";
 		return;
 	}
 	if (status == FREE){ //if lock is available
