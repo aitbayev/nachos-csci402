@@ -54,6 +54,7 @@
 #include "system.h"
 
 
+
 // External functions used by this file
 
 extern void ThreadTest(void), Copy(char *unixFile, char *nachosFile);
@@ -78,6 +79,7 @@ extern void MailTest(int networkID);
 int
 main(int argc, char **argv)
 {
+	srand (time(NULL));
     int argCount;			// the number of arguments 
 					// for a particular command
 
