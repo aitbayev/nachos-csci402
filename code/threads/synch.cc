@@ -147,7 +147,7 @@ void Lock::Release() {
 	Thread *thread;
 	IntStatus oldLevel = interrupt->SetLevel(IntOff); //disable interrupts
 	if(!isHeldByCurrentThread()){
-		cout<< currentThread->getName() <<" thread is not lock owner \n";
+		cout<< currentThread->getName() <<" thread is not lock owner "<<this->name<<" \n";
 		(void) interrupt->SetLevel(oldLevel);	// restore interrupts
 		return;
 	}
