@@ -68,7 +68,9 @@ struct Customer{
 	bool atPicClerk; //whether customer went to pic clerk
 	bool atPassClerk; //whether customer went to passport clerk
 	bool atCashier; //whether customer went to cashier
-	int liked; 
+	int liked; //keep track of pic-recursive
+	int pass_punished; //keep track of punishment by pass clerk- recursive
+	int cash_punished; //keep track of punishment by cashier- recursive
 	int pic_liking; //probability of liking the picture
 	int clerk_pick; //which clerk to go first- app or pic clerk?
 	
@@ -77,6 +79,8 @@ struct Customer{
 		this->name = n;
 		this->social_security = ss;
 		liked = 0;
+		pass_punished = 0;
+		cash_punished = 0;
 		application = true; //application is completed by the customer
 		
 		int money_rand = rand() % 4; //randomize the amount of money customer will have
@@ -215,7 +219,7 @@ vector<Cashier*> cashier_clerks;
 
 vector<Lock*> CashierLock; //lock used to interact- at the register
 vector<Condition*> CashierCV; //cv used to interact- at the register
-vector<Lock*> CashierLineock; //lock used for line
+vector<Lock*> CashierLineLock; //lock used for line
 vector<Condition*> CashierLineCV; //cv used for line
 Lock PickCashierLineLock("PickCashierLineLock"); //lock used to pick which cashier line to go to
 
@@ -506,16 +510,21 @@ void goToPassClerkLine(int arg){
 					currentThread->Yield();
 				}
 				//go back to the end of the line
-				goToPassClerkLine(arg);					
+				PassClerkLock[myLine]->Release();
+				customers[arg]->pass_punished++;
+				goToPassClerkLine(arg);		
+				PassClerkLock[myLine]->Acquire();
+				customers[arg]->pass_punished--;
 			}
 			break;
 		}
 	}
 	
-	//customers[myLine]->atPassClerk = true;
-	
 	PassClerkLock[myLine]->Release();
 	
+	if(customers[arg]->pass_punished == 0){
+		goToCashierLine(arg);
+	}
 }
 
 void passGetCustomer(int arg){
@@ -560,21 +569,143 @@ void passGetCustomer(int arg){
 				}
 				else{
 					cout<<currentThread->getName()<<" had determined that Customer ["<<passport_clerks[myLine]->ssn<<"] does not have both their application and picture completed"<<endl;
-					
 				}	
 				break;	
 			}
 		}
-		
 		//PassClerkCV[myLine]->Wait(PassClerkLock[myLine]);
 		
 		PassClerkLock[myLine]->Release();
 	}
 }
 
-void goToCashierLine(int arg){}
+void goToCashierLine(int arg){
+	int myLine = -1;
+	int lineSize = 1000;
+	
+	PickCashierLineLock.Acquire();
+	for (unsigned int i=0; i<cashier_clerks.size(); i++){
+		if(cashier_clerks[i]->lineCount<lineSize && cashier_clerks[i]->state != onBreak){
+			myLine = i;
+			lineSize = cashier_clerks[i]->lineCount;
+		}
+	}
+	PickCashierLineLock.Release();
+	
+	CashierLineLock[myLine]->Acquire();
+ 	if(cashier_clerks[myLine]->state == busy){
+			cashier_clerks[myLine]->lineCount++;	
+			cout<<currentThread->getName()<<" has gotten in regular line for "<< cashier_clerks[myLine]->name<<"\n";
+			CashierLineCV[myLine]->Wait(CashierLineLock[myLine]);
+			cashier_clerks[myLine]->lineCount--;	
+	}
+	else{
+			cout<<currentThread->getName()<<"at the register of "<<cashier_clerks[myLine]->name<<endl;
+		 	cashier_clerks[myLine]->state = busy;
+	}
+	CashierLineLock[myLine]->Release();
+	
+	CashierLock[myLine]->Acquire();
+	cashier_clerks[myLine]->ssn = arg;
+	cout<<currentThread->getName()<<" has given SSN ["<<arg<<"] to Cashier["<<myLine<<"]"<<endl;
+	
+	CashierCV[myLine]->Signal(CashierLock[myLine]);
+	CashierCV[myLine]->Wait(CashierLock[myLine]); 
+	
+	customers[arg]->money -=100; //pays 100 dollars
+	//customers[arg]->paidCashier = true; //mark that the customer paid cashier
+	
+	CashierCV[myLine]->Signal(CashierLock[myLine]);
+	CashierCV[myLine]->Wait(CashierLock[myLine]); 
+	
+	for(unsigned int k=0; k<customer_data.size(); k++){
+		if(customer_data[k]->SSN == arg){
+			if(customer_data[k]->got_passport == false){
+				cout<<"    "<<currentThread->getName()<<" is being punished by Cashier["<<myLine<<"]"<<endl;
+				int yield_random = rand() % 901 + 100;
+				for(int i=0; i<yield_random; i++){
+					currentThread->Yield();
+				}
+				//go back to the end of the line
+				CashierLock[myLine]->Release();
+				customers[arg]->cash_punished++;
+				goToCashierLine(arg);	
+				CashierLock[myLine]->Acquire();
+				customers[arg]->cash_punished--;
+			}
+			break;
+		}
+	}
+	cout<<"  customer is out of the office"<<endl;
+	CashierLock[myLine]->Release();
+}
 
-void cashGetCustomer(int arg){}
+void cashGetCustomer(int arg){
+	while(true){
+ 		int myLine = arg;
+		CashierLineLock[myLine]->Acquire();	
+		
+ 		if(cashier_clerks[myLine]->lineCount>0){
+ 			cout<< currentThread->getName()<<" has signalled a Customer to come to their counter \n";
+ 			CashierLineCV[myLine]->Signal(CashierLineLock[myLine]);
+ 			cashier_clerks[myLine]->state = busy;
+		}
+  		else{
+ 			cashier_clerks[myLine]->state = available;
+ 		}	 
+ 	
+ 		CashierLock[myLine]->Acquire();
+		CashierLineLock[myLine]->Release();
+		
+ //wait for Customer Data 
+		CashierCV[myLine]->Wait(CashierLock[myLine]); 
+		cout<<currentThread->getName()<<" has received SSN ["<<cashier_clerks[myLine]->ssn<<"] from Customer ["<<cashier_clerks[myLine]->ssn<<"]"<<endl;
+		
+		for(unsigned int k=0; k<customer_data.size(); k++){
+			if(customer_data[k]->SSN == cashier_clerks[myLine]->ssn)
+			{
+				//if the passport clerk verified the application and picture
+				if(customer_data[k]->verified == true){ 
+	
+					cout<<currentThread->getName()<<" has verified that Customer ["<<cashier_clerks[myLine]->ssn<<"] has been certified by a PassportClerk"<<endl;
+					
+					CashierCV[myLine]->Signal(CashierLock[myLine]);
+					CashierCV[myLine]->Wait(CashierLock[myLine]);
+			
+					cashier_clerks[myLine]->money += 100; //receives money from the customer
+					cout<<currentThread->getName()<<" has received the $100 from Customer ["<<cashier_clerks[myLine]->ssn<<"] after certification"<<endl;
+
+					int yield_random = rand() % 81 + 20;
+					for(int g=0; g<yield_random; g++){
+						currentThread->Yield();
+					}
+					customer_data[k]->got_passport = true;
+					cout<<currentThread->getName()<<" has provided Customer ["<<cashier_clerks[myLine]->ssn<<"] their completed passport"<<endl;
+
+					customers[customer_data[k]->SSN]->atCashier = true;
+					CashierCV[myLine]->Signal(CashierLock[myLine]);
+					cout<<currentThread->getName()<<" has recorded Customer ["<<cashier_clerks[myLine]->ssn<<"] passport documentation"<<endl;
+				}
+				else{
+					CashierCV[myLine]->Signal(CashierLock[myLine]);
+					CashierCV[myLine]->Wait(CashierLock[myLine]);
+			
+					cashier_clerks[myLine]->money += 100; //receives money from the customer
+					cout<<currentThread->getName()<<" has received the $100 from Customer ["<<cashier_clerks[myLine]->ssn<<"] before certification. They are to go to the back of my line."<<endl;
+					
+					CashierCV[myLine]->Signal(CashierLock[myLine]);
+					CashierCV[myLine]->Wait(CashierLock[myLine]);
+
+				}	
+				break;	
+			}
+		}
+		
+		//CashierCV[myLine]->Wait(CashierLock[myLine]);
+		
+		CashierLock[myLine]->Release();
+	}
+}
 
 void ThreadTest()
 {
@@ -589,6 +720,7 @@ char *name;
 char *app_name;
 char *pic_name;
 char *pass_name;
+char *cashier_name;
 
 void Problem2(){
 
@@ -711,6 +843,46 @@ void Problem2(){
 		
 		thread = new Thread(pass_name);
 		thread->Fork((VoidFunctionPtr)passGetCustomer,j);
+		
+		name="";
+	}
+	
+	Cashier *cash_clerk;
+	Lock *cashierLineLock;
+    Condition *cashierLineCV;
+    Lock *cashierLock;
+    Condition *cashierCV;
+	
+	for(int j=0; j<2; j++){
+		name = new char [20];
+		cashier_name = new char [20];
+		sprintf(cashier_name, "Cashier[%d]",j);
+		
+		cash_clerk = new Cashier(cashier_name);
+		cashier_clerks.push_back(cash_clerk);
+		
+		sprintf(name,"CashierLineLock[%d]",j);
+		
+		cashierLineLock = new Lock(name);
+		CashierLineLock.push_back(cashierLineLock);
+		
+		sprintf(name,"CashierLineCV[%d]",j);
+		
+		cashierLineCV = new Condition(name);
+		CashierLineCV.push_back(cashierLineCV);
+		
+		sprintf(name,"CashierLock[%d]",j);
+		
+		cashierLock = new Lock(name);
+		CashierLock.push_back(cashierLock);
+		
+		sprintf(name,"CashierCV[%d]",j);
+		
+		cashierCV = new Condition(name);
+		CashierCV.push_back(cashierCV);
+		
+		thread = new Thread(cashier_name);
+		thread->Fork((VoidFunctionPtr)cashGetCustomer,j);
 		
 		name="";
 	}
