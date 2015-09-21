@@ -374,108 +374,123 @@ void picGetCustomer(int arg){
 	}
 }
 
-//customer
+//customer function- going to app clerk line
 void goToAppClerkLine(int arg){
 
-	int myLine = -1;
-	int lineSize = 1000;
-	PickAppClerkLineLock.Acquire();
+	int myLine = -1; //my line is initially set to -1
+	int lineSize = 1000; //maximum number of customers in a line
+	
+	PickAppClerkLineLock.Acquire(); //acquire pick app clerk line lock
+	
+	//for each picture clerk (1-5)
 	for (unsigned int i=0; i<application_clerks.size(); i++){
+		//if the clerk is not on break and line is shorter than the previous line I checked (if first time, it is satisfied)
 		if(application_clerks[i]->lineCount<lineSize && application_clerks[i]->state != onBreak){
-			myLine = i;
-			lineSize = application_clerks[i]->lineCount;
+			myLine = i; //this is my new line
+			lineSize = application_clerks[i]->lineCount; //line size is set to this line's size
 		}
 	}
-	PickAppClerkLineLock.Release();
 	
-	AppClerkLineLock[myLine]->Acquire();
+	PickAppClerkLineLock.Release(); //release the lock
+	AppClerkLineLock[myLine]->Acquire(); //acquire line lock
+	
+	//if the clerk is busy
  	if(application_clerks[myLine]->state == busy){
-			application_clerks[myLine]->lineCount++;	
+			application_clerks[myLine]->lineCount++; //customer gets in line- increment line number
 			cout<<currentThread->getName()<<" has gotten in regular line for "<< application_clerks[myLine]->name<<"\n";
-			AppClerkLineCV[myLine]->Wait(AppClerkLineLock[myLine]);
-			application_clerks[myLine]->lineCount--;	
+			AppClerkLineCV[myLine]->Wait(AppClerkLineLock[myLine]); //wait until clerk signals to come to the register
+			application_clerks[myLine]->lineCount--; //get out of the line to go to the register- decrement
 	}
+	//if the clerk is not busy
 	else{
 			cout<<currentThread->getName()<<"at the register of "<<application_clerks[myLine]->name<<endl;
-		 	application_clerks[myLine]->state = busy;
+		 	application_clerks[myLine]->state = busy; //go to the register, clerk is busy now
 	}
-	AppClerkLineLock[myLine]->Release();
-	AppClerkLock[myLine]->Acquire();
-	application_clerks[myLine]->ssn = arg;
-	cout<<currentThread->getName()<<" has given SSN ["<<arg<<"] to ApplicationClerk["<<myLine<<"]"<<endl;
-	AppClerkCV[myLine]->Signal(AppClerkLock[myLine]);
 	
-	AppClerkCV[myLine]->Wait(AppClerkLock[myLine]); //no need to wait
-	//customers[arg]->atAppClerk = true;
-	AppClerkLock[myLine]->Release();
+	AppClerkLineLock[myLine]->Release(); //release the line lock
+	AppClerkLock[myLine]->Acquire(); //acquire interaction lock
+	
+	application_clerks[myLine]->ssn = arg; //give thread id as SSN
+	cout<<currentThread->getName()<<" has given SSN ["<<arg<<"] to ApplicationClerk["<<myLine<<"]"<<endl;
 
-//	if (customers[arg]->atPicClerk == false){	
-	if (customers[arg]->clerk_pick > 10){ //go to app clerk first
-		goToPicClerkLine(arg);
+	AppClerkCV[myLine]->Signal(AppClerkLock[myLine]); //signal clerk
+	AppClerkCV[myLine]->Wait(AppClerkLock[myLine]); //wait for clerk to get back from filing
+
+	AppClerkLock[myLine]->Release(); //release the lock
+
+	//if customer went to app clerk first
+	if (customers[arg]->clerk_pick > 10){ 
+		goToPicClerkLine(arg); //move onto pic clerk
 	}
+	//if customer went to pic clerk first
 	else{
-		cout<<currentThread->getName()<< " now I need to go to passport clerk- app"<<endl;
-		goToPassClerkLine(arg);
-		//customers[arg]->atPassClerk = true; //testing***
-
+		goToPassClerkLine(arg); //move onto passport clerk
 	}
 }
 
-
-//clerk
+//application clerk function- getting customer
 void appGetCustomer(int arg){
 
 	 while(true){
- 		int myLine = arg;
-		AppClerkLineLock[myLine]->Acquire();	
- 		 if(application_clerks[myLine]->lineCount>0){
+ 		int myLine = arg; //'my' line is defined by 'my' thread id
+ 		
+		AppClerkLineLock[myLine]->Acquire(); //acquire line lock
+ 		//if there is someone in line	
+ 		if(application_clerks[myLine]->lineCount>0){
  			cout<< currentThread->getName()<<" has signalled a Customer to come to their counter \n";
- 			AppClerkLineCV[myLine]->Signal(AppClerkLineLock[myLine]);
- 			application_clerks[myLine]->state = busy;
+ 			AppClerkLineCV[myLine]->Signal(AppClerkLineLock[myLine]); //signal the customer to come
+ 			application_clerks[myLine]->state = busy; //app clerk is now busy
 		}
+		//if no one is in line
   		else{
- 			application_clerks[myLine]->state = available;
+ 			application_clerks[myLine]->state = available; //app clerk is available
  		}	 
  	
- 		AppClerkLock[myLine]->Acquire();
-		AppClerkLineLock[myLine]->Release();
+ 		AppClerkLock[myLine]->Acquire(); //acquire interaction lock
+		AppClerkLineLock[myLine]->Release(); //release line lock
 		
- //wait for Customer Data 
-		AppClerkCV[myLine]->Wait(AppClerkLock[myLine]); 
+		AppClerkCV[myLine]->Wait(AppClerkLock[myLine]); //wait for customer to give SSN
 		cout<<currentThread->getName()<<" has received SSN ["<<application_clerks[myLine]->ssn<<"] from Customer ["<<application_clerks[myLine]->ssn<<"]"<<endl;
-	    bool flag = false;
+
+	    bool flag = false; //whether customer is in customer data
+	    
+		//loop each customer data
 	    for (unsigned int i=0; i< customer_data.size(); i++){
+	    	//if customer's data is found
 	    	if (customer_data[i]->SSN == application_clerks[myLine]->ssn){
-	    		flag = true; 
+	    		flag = true; //customer exists in customer data
 	    	}
 	    }
+	    //if customer does not exist in customer data
 	    if (flag == false){
+	    	//create and add customer data for this particular customer
 			CustomerData *c_d = new CustomerData(application_clerks[myLine]->ssn);
 			customer_data.push_back(c_d);
 		}
+		
+		//loop each customer data
 		for (unsigned int i=0; i<customer_data.size(); i++){
+			//if customer's data is found
 			if (customer_data[i]->SSN == application_clerks[myLine]->ssn){
-				int r = rand() % 81 +20;
+				int r = rand() % 81 +20; //randomize yield
+				//loop to call yield- wait time to file in application
 				for (int k=0; k<r; k++){
 					currentThread->Yield();		
 				}
-				customer_data[i]->application = true;
-				customers[customer_data[i]->SSN]->atAppClerk = true;
+				customer_data[i]->application = true; //application is done
+				customers[customer_data[i]->SSN]->atAppClerk = true; //customer is at app clerk
 			}
 		}
-		AppClerkCV[myLine]->Signal(AppClerkLock[myLine]);
 		cout<<currentThread->getName()<<" has recorded a completed application for Customer["<<application_clerks[myLine]->ssn<<"]"<<endl;
-		
-		//AppClerkCV[myLine]->Wait(AppClerkLock[myLine]);
-		
-		AppClerkLock[myLine]->Release();
+		AppClerkCV[myLine]->Signal(AppClerkLock[myLine]); //signal the customer that record is completed
+		AppClerkLock[myLine]->Release(); //release the lock
 	}
 }
 
 void goToPassClerkLine(int arg){
 
-	int myLine = -1;
-	int lineSize = 1000;
+	int myLine = -1; //my line is initially set to -1
+	int lineSize = 1000; //maximum number of customers in a line
 	PickPassClerkLineLock.Acquire();
 	for (unsigned int i=0; i<passport_clerks.size(); i++){
 		if(passport_clerks[i]->lineCount<lineSize && passport_clerks[i]->state != onBreak){
@@ -582,8 +597,8 @@ void passGetCustomer(int arg){
 }
 
 void goToCashierLine(int arg){
-	int myLine = -1;
-	int lineSize = 1000;
+	int myLine = -1; //my line is initially set to -1
+	int lineSize = 1000; //maximum number of customers in a line
 	
 	PickCashierLineLock.Acquire();
 	for (unsigned int i=0; i<cashier_clerks.size(); i++){
