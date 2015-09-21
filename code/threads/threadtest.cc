@@ -11,11 +11,11 @@
 
 #include "copyright.h"
 #include "system.h"
+#include "synch.h"
 #include "test_code.cc"
 #include <iostream>
 #include <string>
 #include <cstdlib>
-#include "synch.h"
 #include <vector>
 #include <time.h>
 
@@ -30,41 +30,47 @@ using namespace std;
 //	purposes.
 //----------------------------------------------------------------------
 
+//customer states
 enum CustomerState {atAppClerk, atPictureClerk, atPassportClerk, atCashier};
+//clerk states
 enum ClerkState {busy, available, onBreak};
+//predeclare functions
 void goToAppClerkLine(int);
 void goToPicClerkLine(int);
 void picGetCustomer(int);
 void appGetCustomer(int);
 
-
+//customer data struct that stores customer information and passport status reports
 struct CustomerData{
 	string name;
-	int SSN;
-	bool application;
-	bool picture;
-	bool verified;
-	bool got_passport;
+	int SSN; //social security number
+	bool application; //whether application clerk filed the application
+	bool picture; //whether picture clerk took a picture and filed it
+	bool verified; //whether passport clerk verified and filed it
+	bool got_passport; //whether customer received his/her passport from cashier
 	
-	CustomerData(int s){
+	CustomerData(int s){ //constructor that sets social security number
 		this->SSN = s;
 	}
 	
 };
 
+//customer struct
 struct Customer{
 	string name;
-	int money;
-	bool application;
+	int money; 
 	int social_security;
-	bool atAppClerk;
-	bool atPicClerk;
-	bool atPassClerk;
-	bool atCashier;
-	int pic_liking;
-	int clerk_pick;
+	bool application; //application completed?
+	bool atAppClerk; //whether customer went to app clerk
+	bool atPicClerk; //whether customer went to pic clerk
+	bool atPassClerk; //whether customer went to passport clerk
+	bool atCashier; //whether customer went to cashier
+	int pic_liking; //probability of liking the picture
+	int clerk_pick; //which clerk to go first- app or pic clerk?
 	
-Customer(string n, int ss){
+	//customer constructor
+	Customer(string n, int ss){
+	
 	
 	this->name = n;
 	this->social_security = ss;
@@ -260,7 +266,7 @@ void picGetCustomer(int arg){
 			for (unsigned int i=0; i<customer_data.size(); i++){
 				if (customer_data[i]->SSN == picture_clerks[myLine]->ssn){
 					int r = rand() % 81 +20;
-					for (int k=0; k<r; i++){
+					for (int k=0; k<r; k++){
 						currentThread->Yield();
 					}
 					customer_data[i]->picture = true;
