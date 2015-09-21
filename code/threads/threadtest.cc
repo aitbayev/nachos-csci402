@@ -65,6 +65,7 @@ struct Customer{
 	bool atPicClerk; //whether customer went to pic clerk
 	bool atPassClerk; //whether customer went to passport clerk
 	bool atCashier; //whether customer went to cashier
+	int liked; 
 	int pic_liking; //probability of liking the picture
 	int clerk_pick; //which clerk to go first- app or pic clerk?
 	
@@ -72,6 +73,7 @@ struct Customer{
 	Customer(string n, int ss){
 		this->name = n;
 		this->social_security = ss;
+		liked = 0;
 		application = true; //application is completed by the customer
 		
 		int money_rand = rand() % 4; //randomize the amount of money customer will have
@@ -222,17 +224,25 @@ void goToPicClerkLine(int arg){
 		picture_clerks[myLine]->pic = false;
 		PicClerkLock[myLine]->Release();
 		PicClerkCV[myLine]->Signal(PicClerkLock[myLine]);
+		customers[arg]->liked++;
+		cout << "**liked(i): " << customers[arg]->liked << endl;
 		goToPicClerkLine(arg);
+		customers[arg]->liked--;
+		cout << "**liked(d): " << customers[arg]->liked << endl;
 		PicClerkLock[myLine]->Acquire();
 	}
 	//PicClerkCV[myLine]->Signal(PicClerkLock[myLine]); I think i don't need it now ince already signal
 
 	PicClerkLock[myLine]->Release();
-	if (customers[arg]->clerk_pick <= 10){ // got to pic clerk first
+	if (customers[arg]->atAppClerk == false){
+	//if (customers[arg]->clerk_pick <= 10){ // got to pic clerk first
 		goToAppClerkLine(arg);
 	}
 	else{
-		cout<<currentThread->getName()<< " now I need to go to passport clerk"<<endl;
+		if(customers[arg]->liked == 0 && customers[arg]->atPassClerk == false){
+			cout<<currentThread->getName()<< " now I need to go to passport clerk"<<endl;
+			customers[arg]->atPassClerk = true; //testing***
+		}
 	}
 }
 
@@ -277,6 +287,8 @@ void picGetCustomer(int arg){
 						currentThread->Yield();
 					}
 					customer_data[i]->picture = true;
+					customers[customer_data[i]->SSN]->atPicClerk = true;
+
 				}
 			}
 			
@@ -322,14 +334,17 @@ void goToAppClerkLine(int arg){
 	AppClerkCV[myLine]->Signal(AppClerkLock[myLine]);
 	
 	AppClerkCV[myLine]->Wait(AppClerkLock[myLine]); //no need to wait
-	customers[arg]->atAppClerk = true;
+	//customers[arg]->atAppClerk = true;
 	AppClerkLock[myLine]->Release();
-	
-	if (customers[arg]->clerk_pick > 10){ //go to app clerk first
+
+	if (customers[arg]->atPicClerk == false){	
+//	if (customers[arg]->clerk_pick > 10){ //go to app clerk first
 		goToPicClerkLine(arg);
 	}
 	else{
-		cout<<currentThread->getName()<< " now I need to go to passport clerk"<<endl;
+		cout<<currentThread->getName()<< " now I need to go to passport clerk- app"<<endl;
+		customers[arg]->atPassClerk = true; //testing***
+
 	}
 }
 
@@ -365,12 +380,14 @@ void appGetCustomer(int arg){
 			CustomerData *c_d = new CustomerData(application_clerks[myLine]->ssn);
 			customer_data.push_back(c_d);
 		}
-		for(int i=0; i<50; i++){
-			currentThread->Yield();
-		}
 		for (unsigned int i=0; i<customer_data.size(); i++){
 			if (customer_data[i]->SSN == application_clerks[myLine]->ssn){
+				int r = rand() % 81 +20;
+				for (int k=0; k<r; k++){
+					currentThread->Yield();		
+				}
 				customer_data[i]->application = true;
+				customers[customer_data[i]->SSN]->atAppClerk = true;
 			}
 		}
 		AppClerkCV[myLine]->Signal(AppClerkLock[myLine]);
