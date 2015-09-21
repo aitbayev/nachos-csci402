@@ -281,95 +281,97 @@ void goToPicClerkLine(int arg){
 		PicClerkCV[myLine]->Signal(PicClerkLock[myLine]); //signal
 
 	}
+	//if the number is greater, customer does not like it
 	else {
 		cout<<currentThread->getName()<<"does not like their picture from PictureClerk["<<myLine<<"]"<<endl;//didn't like the picture
-		picture_clerks[myLine]->pic = false;
-		PicClerkCV[myLine]->Signal(PicClerkLock[myLine]);
-		PicClerkLock[myLine]->Release();
-		customers[arg]->liked++;
+		picture_clerks[myLine]->pic = false; //picture is rejected
+		PicClerkCV[myLine]->Signal(PicClerkLock[myLine]); //signal
+		PicClerkLock[myLine]->Release(); //release the lock so other customer can access it
+		customers[arg]->liked++; //keeps track of recursive-ness
 		cout << "**liked(i): " << customers[arg]->liked << endl;
-		goToPicClerkLine(arg);
-		PicClerkLock[myLine]->Acquire();
-		customers[arg]->liked--;
+		goToPicClerkLine(arg); //recursive call- get in line again to retake
+		PicClerkLock[myLine]->Acquire(); //acquire the lock
+		customers[arg]->liked--; //decrement every time customer returns from recursive call
 		cout << "**liked(d): " << customers[arg]->liked << endl;
 	}
 
-	PicClerkLock[myLine]->Release();
-			/*cout<<"<> "<< customers[arg]->clerk_pick<<" "<<arg<<endl;
-			if(customers[arg]->atPassClerk == false){
-				cout<<"FALSE"<<endl;
-			}
-			else{
-				cout<<"TRUE"<<endl;
-			}*/
+	PicClerkLock[myLine]->Release(); //release the lock- business done with picture clerk
 
-	//if (customers[arg]->atAppClerk == false){
-	if (customers[arg]->clerk_pick <= 10 && customers[arg]->atPassClerk == false){ // got to pic clerk first
-		goToAppClerkLine(arg);
+	//if customer went to pic clerk first and did not go to passport clerk in recursive call
+	if (customers[arg]->clerk_pick <= 10 && customers[arg]->atPassClerk == false){ 
+		goToAppClerkLine(arg); //move onto app clerk
 	}
 	else{
+		//if this is the only/last call (from recursion) and did not go to passport clerk in recursive call
 		if(customers[arg]->liked == 0 && customers[arg]->atPassClerk == false){
-			cout<<currentThread->getName()<< " now I need to go to passport clerk"<<endl;
-			goToPassClerkLine(arg);
-			//customers[arg]->atPassClerk = true; //testing***
+			goToPassClerkLine(arg); //move onto passport clerk
 		}
 	}
 }
 
-//pic clerk
+//picture clerk function- getting customer
 void picGetCustomer(int arg){
 	while (true){
-		int myLine = arg;
-		PicClerkLineLock[myLine]->Acquire();
+		int myLine = arg; //'my' line is defined by 'my' thread id
+
+		PicClerkLineLock[myLine]->Acquire(); //clerk acquires pick lock
+		//if there is someone in line
 		if(picture_clerks[myLine]->lineCount>0){
  			cout<< currentThread->getName()<<" has signalled a Customer to come to their counter \n";
- 			PicClerkLineCV[myLine]->Signal(PicClerkLineLock[myLine]);
- 			picture_clerks[myLine]->state = busy;
+ 			PicClerkLineCV[myLine]->Signal(PicClerkLineLock[myLine]); //signals a customer to come to the register
+ 			picture_clerks[myLine]->state = busy; //state set to busy
 		}
+		//if no one is in line
   		else{
- 			picture_clerks[myLine]->state = available;
+ 			picture_clerks[myLine]->state = available; //state set to available
  		}	 
  	
- 		PicClerkLock[myLine]->Acquire();
-		PicClerkLineLock[myLine]->Release();
-		PicClerkCV[myLine]->Wait(PicClerkLock[myLine]); 
+ 		PicClerkLock[myLine]->Acquire(); //acquire interaction lock
+		PicClerkLineLock[myLine]->Release(); //release line lock
+		PicClerkCV[myLine]->Wait(PicClerkLock[myLine]); //wait until customer gives his/her SSN
 		
 		cout<<currentThread->getName()<<" has received SSN ["<<picture_clerks[myLine]->ssn<<"] from Customer ["<<picture_clerks[myLine]->ssn<<"]"<<endl;
 		cout<<currentThread->getName()<<" has taken a picture of Customer["<<picture_clerks[myLine]->ssn<<"]"<<endl;
-		PicClerkCV[myLine]->Signal(PicClerkLock[myLine]);
-		PicClerkCV[myLine]->Wait(PicClerkLock[myLine]);
-		bool flag = false;
+		PicClerkCV[myLine]->Signal(PicClerkLock[myLine]); //signal the customer for picture approval
+		PicClerkCV[myLine]->Wait(PicClerkLock[myLine]); //wait for customer response
+		
+		bool flag = false; //whether customer is in customer data
+		//if the picture is approved
 		if (picture_clerks[myLine]->pic == true){
 			cout<<currentThread->getName()<<" has been told that Customer["<<picture_clerks[myLine]->ssn<<"] does like their picture"<<endl;
+			//loop each customer data
 			for (unsigned int i=0; i<customer_data.size(); i++){
+				//if customer's data is found
 				if(customer_data[i]->SSN == picture_clerks[myLine]->ssn){
-					flag = true;
+					flag = true; //customer is already in customer data
 				}
 			}
+			//if customer was not found
 			if (flag == false){
+				//create and add customer data for this particular customer
 				CustomerData *c_d = new CustomerData(application_clerks[myLine]->ssn);
 				customer_data.push_back(c_d);				
 			}
+			//loop each customer data
 			for (unsigned int i=0; i<customer_data.size(); i++){
+				//if customer's data is found
 				if (customer_data[i]->SSN == picture_clerks[myLine]->ssn){
-					int r = rand() % 81 +20;
+					int r = rand() % 81 +20; //randomize yield
+					//loop to call yield- wait time to file in picture
 					for (int k=0; k<r; k++){
-						currentThread->Yield();
+						currentThread->Yield(); 
 					}
-					customer_data[i]->picture = true;
-					customers[customer_data[i]->SSN]->atPicClerk = true;
-
+					customer_data[i]->picture = true; //picture is taken
+					customers[customer_data[i]->SSN]->atPicClerk = true; //at picture clerk
 				}
 			}
-			
 		}
+		//if the picture is rejected
 		else{
 			cout<<currentThread->getName()<<" has been told that Customer["<<picture_clerks[myLine]->ssn<<"] does not like their picture"<<endl;
 		}
-		
-		PicClerkLock[myLine]->Release();
+		PicClerkLock[myLine]->Release(); //release picture clerk lock
 	}
-
 }
 
 //customer
