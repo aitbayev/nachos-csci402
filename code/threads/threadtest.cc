@@ -37,8 +37,10 @@ enum ClerkState {busy, available, onBreak};
 //predeclare functions
 void goToAppClerkLine(int);
 void goToPicClerkLine(int);
+void goToPassClerkLine(int);
 void picGetCustomer(int);
 void appGetCustomer(int);
+void passGetCustomer(int);
 
 //customer data struct that stores customer information and passport status reports
 struct CustomerData{
@@ -107,7 +109,7 @@ struct Customer{
 //application clerk struct
 struct ApplicationClerk{
 
-	string name;
+	string name;	
 	int lineCount;
 	int money;
 	int ssn;
@@ -141,6 +143,24 @@ struct PictureClerk{
 	}
 };
 
+//struct passport struct
+struct PassportClerk{
+
+	string name;
+	int lineCount;
+	int money;
+	int ssn;
+	ClerkState state;
+
+	//constructor that initialize		
+	PassportClerk(string n){
+		this->name = n;
+		this->money = 0; //money is set to 0
+		this->state = available; //clerk is available
+		this->lineCount = 0; //no one is in line
+	}
+};
+
 vector<CustomerData*> customer_data; //customer data storage globally declared
 vector<Customer*> customers; //customers
 
@@ -161,6 +181,15 @@ vector<Condition*> PicClerkCV; //cv used to interact- at the register
 vector<Lock*> PicClerkLineLock; //lock used for line
 vector<Condition*> PicClerkLineCV; //cv used for line
 Lock PickPicClerkLineLock("PickPicClerkLineLock"); //lock used to pick which pic clerk line to go to
+
+//passport clerk and their locks and cv
+vector<PassportClerk*> passport_clerks;
+
+vector<Lock*> PassClerkLock; //lock used to interact- at the register
+vector<Condition*> PassClerkCV; //cv used to interact- at the register
+vector<Lock*> PassClerkLineLock; //lock used for line
+vector<Condition*> PassClerkLineCV; //cv used for line
+Lock PickPassClerkLineLock("PickPassClerkLineLock"); //lock used to pick which pic clerk line to go to
 
 void SimpleThread(int which)
 {
@@ -241,7 +270,8 @@ void goToPicClerkLine(int arg){
 	else{
 		if(customers[arg]->liked == 0 && customers[arg]->atPassClerk == false){
 			cout<<currentThread->getName()<< " now I need to go to passport clerk"<<endl;
-			customers[arg]->atPassClerk = true; //testing***
+			goToPassClerkLine(arg);
+			//customers[arg]->atPassClerk = true; //testing***
 		}
 	}
 }
@@ -343,7 +373,8 @@ void goToAppClerkLine(int arg){
 	}
 	else{
 		cout<<currentThread->getName()<< " now I need to go to passport clerk- app"<<endl;
-		customers[arg]->atPassClerk = true; //testing***
+		goToPassClerkLine(arg);
+		//customers[arg]->atPassClerk = true; //testing***
 
 	}
 }
@@ -396,11 +427,114 @@ void appGetCustomer(int arg){
 		//AppClerkCV[myLine]->Wait(AppClerkLock[myLine]);
 		
 		AppClerkLock[myLine]->Release();
-}
+	}
 }
 
-void
-ThreadTest()
+void goToPassClerkLine(int arg){
+
+	int myLine = -1;
+	int lineSize = 1000;
+	PickPassClerkLineLock.Acquire();
+	for (unsigned int i=0; i<passport_clerks.size(); i++){
+		if(passport_clerks[i]->lineCount<lineSize && passport_clerks[i]->state != onBreak){
+			myLine = i;
+			lineSize = passport_clerks[i]->lineCount;
+		}
+	}
+	PickPassClerkLineLock.Release();
+	PassClerkLineLock[myLine]->Acquire();
+ 	if(passport_clerks[myLine]->state == busy){
+			passport_clerks[myLine]->lineCount++;	
+			cout<<currentThread->getName()<<" has gotten in regular line for "<< passport_clerks[myLine]->name<<"\n";
+			PassClerkLineCV[myLine]->Wait(PassClerkLineLock[myLine]);
+			passport_clerks[myLine]->lineCount--;	
+	}
+	else{
+			cout<<currentThread->getName()<<"at the register of "<<passport_clerks[myLine]->name<<endl;
+		 	passport_clerks[myLine]->state = busy;
+	}
+	PassClerkLineLock[myLine]->Release();
+	
+	PassClerkLock[myLine]->Acquire();
+	passport_clerks[myLine]->ssn = arg;
+	cout<<currentThread->getName()<<" has given SSN ["<<arg<<"] to PassportClerk["<<myLine<<"]"<<endl;
+	PassClerkCV[myLine]->Signal(PassClerkLock[myLine]);
+	PassClerkCV[myLine]->Wait(PassClerkLock[myLine]);
+	
+	for(unsigned int k=0; k<customer_data.size(); k++){
+		if(customer_data[k]->SSN == arg){
+			if(customer_data[k]->verified == false){
+				int yield_random = rand() % 901 + 100;
+				for(int i=0; i<yield_random; i++){
+					currentThread->Yield();
+				}
+				//go back to the end of the line
+				goToPassClerkLine(arg);					
+			}
+			break;
+		}
+	}
+	
+	customers[myLine]->atPassClerk = true;
+	PassClerkLock[myLine]->Release();
+	
+}
+
+void passGetCustomer(int arg){
+	while(true){
+ 		int myLine = arg;
+		PassClerkLineLock[myLine]->Acquire();	
+		
+ 		 if(passport_clerks[myLine]->lineCount>0){
+ 			cout<< currentThread->getName()<<" has signalled a Customer to come to their counter \n";
+ 			PassClerkLineCV[myLine]->Signal(PassClerkLineLock[myLine]);
+ 			passport_clerks[myLine]->state = busy;
+		}
+  		else{
+ 			passport_clerks[myLine]->state = available;
+ 		}	 
+ 	
+ 		PassClerkLock[myLine]->Acquire();
+		PassClerkLineLock[myLine]->Release();
+		
+ //wait for Customer Data 
+		PassClerkCV[myLine]->Wait(PassClerkLock[myLine]); 
+		cout<<currentThread->getName()<<" has received SSN ["<<passport_clerks[myLine]->ssn<<"] from Customer ["<<passport_clerks[myLine]->ssn<<"]"<<endl;
+		
+		for(unsigned int k=0; k<customer_data.size(); k++){
+			if(customer_data[k]->SSN == passport_clerks[myLine]->ssn)
+			{
+				customer_data[k]->picture = true;
+				if(customer_data[k]->application == true && customer_data[k]->picture == true){
+		
+					cout<<currentThread->getName()<<" had determined that Customer ["<<passport_clerks[myLine]->ssn<<"] has both their application and picture completed"<<endl;
+					customer_data[k]->verified = true;
+			
+					int yield_random = rand() % 81 + 20;
+					for(int g=0; g<yield_random; g++){
+						currentThread->Yield();
+					}
+					customer_data[k]->verified = true;
+					customers[customer_data[k]->SSN]->atPassClerk = true;
+					PassClerkCV[myLine]->Signal(PassClerkLock[myLine]);
+					cout<<currentThread->getName()<<" has recorded Customer ["<<passport_clerks[myLine]->ssn<<"] passport documentation"<<endl;
+				}
+				else{
+					cout<<currentThread->getName()<<" had determined that Customer ["<<passport_clerks[myLine]->ssn<<"] does not have both their application and picture completed"<<endl;
+					
+				}	
+				break;	
+			}
+		}
+		
+		//PassClerkCV[myLine]->Wait(PassClerkLock[myLine]);
+		
+		PassClerkLock[myLine]->Release();
+	}
+}
+
+
+void ThreadTest()
 {
     DEBUG('t', "Entering SimpleTest");
 
@@ -412,11 +546,11 @@ ThreadTest()
 char *name;
 char *app_name;
 char *pic_name;
+char *pass_name;
 
 void Problem2(){
 
 	Thread *thread;
-	
 	Customer *customer;
 	
 	ApplicationClerk *app_clerk;
@@ -498,6 +632,46 @@ void Problem2(){
 		
 		name="";
     }
+    
+    PassportClerk *pass_clerk;
+    Lock *passClerkLineLock;
+    Condition *passClerkLineCV;
+    Lock *passClerkLock;
+    Condition *passClerkCV;
+    
+    for(int j=0; j<2; j++){
+		name = new char [20];
+		pass_name = new char [20];
+		sprintf(pass_name, "PassportClerk[%d]",j);
+		
+		pass_clerk = new PassportClerk(pass_name);
+		passport_clerks.push_back(pass_clerk);
+		
+		sprintf(name,"PassClerkLineLock[%d]",j);
+		
+		passClerkLineLock  = new Lock(name);
+		PassClerkLineLock.push_back(passClerkLineLock);
+		
+		sprintf(name,"PassClerkLineCV[%d]",j);
+		
+		passClerkLineCV = new Condition(name);
+		PassClerkLineCV.push_back(passClerkLineCV);
+		
+		sprintf(name,"PassClerkLock[%d]",j);
+		
+		passClerkLock  = new Lock(name);
+		PassClerkLock.push_back(passClerkLock);
+		
+		sprintf(name,"PassClerkCV[%d]",j);
+		
+		passClerkCV  = new Condition(name);
+		PassClerkCV.push_back(passClerkCV);
+		
+		thread = new Thread(pass_name);
+		thread->Fork((VoidFunctionPtr)passGetCustomer,j);
+		
+		name="";
+	}
 	
 	for(int i=0; i<5; i++){
 		name = new char [20];
