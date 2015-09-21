@@ -263,8 +263,8 @@ void goToPicClerkLine(int arg){
 	//PicClerkCV[myLine]->Signal(PicClerkLock[myLine]); I think i don't need it now ince already signal
 
 	PicClerkLock[myLine]->Release();
-	if (customers[arg]->atAppClerk == false){
-	//if (customers[arg]->clerk_pick <= 10){ // got to pic clerk first
+	//if (customers[arg]->atAppClerk == false){
+	if (customers[arg]->clerk_pick <= 10){ // got to pic clerk first
 		goToAppClerkLine(arg);
 	}
 	else{
@@ -367,8 +367,8 @@ void goToAppClerkLine(int arg){
 	//customers[arg]->atAppClerk = true;
 	AppClerkLock[myLine]->Release();
 
-	if (customers[arg]->atPicClerk == false){	
-//	if (customers[arg]->clerk_pick > 10){ //go to app clerk first
+//	if (customers[arg]->atPicClerk == false){	
+	if (customers[arg]->clerk_pick > 10){ //go to app clerk first
 		goToPicClerkLine(arg);
 	}
 	else{
