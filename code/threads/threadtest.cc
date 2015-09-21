@@ -56,7 +56,6 @@ struct CustomerData{
 	CustomerData(int s){ //constructor that sets social security number
 		this->SSN = s;
 	}
-	
 };
 
 //customer struct
@@ -245,8 +244,9 @@ void goToPicClerkLine(int arg){
 			lineSize = picture_clerks[i]->lineCount; //line size is set to this line's size
 		}
 	}
+
+	PicClerkLineLock[myLine]->Acquire(); //acquire my clerk's line	
 	PickPicClerkLineLock.Release(); //since the customer chose a line, release the lock so other customer can get in line
-	PicClerkLineLock[myLine]->Acquire(); //acquire my clerk's line
 	
 	//if my clerk is busy
  	if(picture_clerks[myLine]->state == busy){
@@ -260,8 +260,8 @@ void goToPicClerkLine(int arg){
 		 	picture_clerks[myLine]->state = busy; //go to the clerk and set his/her state busy
 	}
 	
-	PicClerkLineLock[myLine]->Release(); //since I am at the register, release the line lock
 	PicClerkLock[myLine]->Acquire(); //acquire my clerk's lock
+	PicClerkLineLock[myLine]->Release(); //since I am at the register, release the line lock
 	
 	picture_clerks[myLine]->ssn = arg; //give my social security number to the clerk
 	cout<<currentThread->getName()<<" has given SSN ["<<arg<<"] to PictureClerk["<<myLine<<"]"<<endl;
@@ -280,18 +280,25 @@ void goToPicClerkLine(int arg){
 	else {
 		cout<<currentThread->getName()<<"does not like their picture from PictureClerk["<<myLine<<"]"<<endl;//didn't like the picture
 		picture_clerks[myLine]->pic = false;
-		PicClerkLock[myLine]->Release();
 		PicClerkCV[myLine]->Signal(PicClerkLock[myLine]);
+		PicClerkLock[myLine]->Release();
 		customers[arg]->liked++;
 		cout << "**liked(i): " << customers[arg]->liked << endl;
 		goToPicClerkLine(arg);
+		PicClerkLock[myLine]->Acquire();
 		customers[arg]->liked--;
 		cout << "**liked(d): " << customers[arg]->liked << endl;
-		PicClerkLock[myLine]->Acquire();
 	}
-	//PicClerkCV[myLine]->Signal(PicClerkLock[myLine]); I think i don't need it now ince already signal
 
 	PicClerkLock[myLine]->Release();
+			/*cout<<"<> "<< customers[arg]->clerk_pick<<" "<<arg<<endl;
+			if(customers[arg]->atPassClerk == false){
+				cout<<"FALSE"<<endl;
+			}
+			else{
+				cout<<"TRUE"<<endl;
+			}*/
+
 	//if (customers[arg]->atAppClerk == false){
 	if (customers[arg]->clerk_pick <= 10 && customers[arg]->atPassClerk == false){ // got to pic clerk first
 		goToAppClerkLine(arg);
@@ -505,7 +512,8 @@ void goToPassClerkLine(int arg){
 		}
 	}
 	
-	customers[myLine]->atPassClerk = true;
+	//customers[myLine]->atPassClerk = true;
+	
 	PassClerkLock[myLine]->Release();
 	
 }
@@ -546,6 +554,7 @@ void passGetCustomer(int arg){
 					}
 					customer_data[k]->verified = true;
 					customers[customer_data[k]->SSN]->atPassClerk = true;
+					//cout<<"><"<<endl;
 					PassClerkCV[myLine]->Signal(PassClerkLock[myLine]);
 					cout<<currentThread->getName()<<" has recorded Customer ["<<passport_clerks[myLine]->ssn<<"] passport documentation"<<endl;
 				}
