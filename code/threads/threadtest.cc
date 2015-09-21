@@ -264,7 +264,7 @@ void goToPicClerkLine(int arg){
 
 	PicClerkLock[myLine]->Release();
 	//if (customers[arg]->atAppClerk == false){
-	if (customers[arg]->clerk_pick <= 10){ // got to pic clerk first
+	if (customers[arg]->clerk_pick <= 10 && customers[arg]->atPassClerk == false){ // got to pic clerk first
 		goToAppClerkLine(arg);
 	}
 	else{
