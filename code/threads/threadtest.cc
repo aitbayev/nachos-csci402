@@ -38,9 +38,11 @@ enum ClerkState {busy, available, onBreak};
 void goToAppClerkLine(int);
 void goToPicClerkLine(int);
 void goToPassClerkLine(int);
+void goToCashierLine(int);
 void picGetCustomer(int);
 void appGetCustomer(int);
 void passGetCustomer(int);
+void cashGetCustomer(int);
 
 //customer data struct that stores customer information and passport status reports
 struct CustomerData{
@@ -143,7 +145,7 @@ struct PictureClerk{
 	}
 };
 
-//struct passport struct
+//passport clerk struct
 struct PassportClerk{
 
 	string name;
@@ -154,6 +156,24 @@ struct PassportClerk{
 
 	//constructor that initialize		
 	PassportClerk(string n){
+		this->name = n;
+		this->money = 0; //money is set to 0
+		this->state = available; //clerk is available
+		this->lineCount = 0; //no one is in line
+	}
+};
+
+//cashier struct
+struct Cashier{
+	
+	string name;
+	int lineCount;
+	int money;
+	int ssn;
+	ClerkState state;
+	
+	//constructor that initialize
+	Cashier(string n){
 		this->name = n;
 		this->money = 0; //money is set to 0
 		this->state = available; //clerk is available
@@ -189,7 +209,16 @@ vector<Lock*> PassClerkLock; //lock used to interact- at the register
 vector<Condition*> PassClerkCV; //cv used to interact- at the register
 vector<Lock*> PassClerkLineLock; //lock used for line
 vector<Condition*> PassClerkLineCV; //cv used for line
-Lock PickPassClerkLineLock("PickPassClerkLineLock"); //lock used to pick which pic clerk line to go to
+Lock PickPassClerkLineLock("PickPassClerkLineLock"); //lock used to pick which passport clerk line to go to
+
+//cashier and their locks and cv
+vector<Cashier*> cashier_clerks;
+
+vector<Lock*> CashierLock; //lock used to interact- at the register
+vector<Condition*> CashierCV; //cv used to interact- at the register
+vector<Lock*> CashierLineock; //lock used for line
+vector<Condition*> CashierLineCV; //cv used for line
+Lock PickCashierLineLock("PickCashierLineLock"); //lock used to pick which cashier line to go to
 
 void SimpleThread(int which)
 {
@@ -464,6 +493,7 @@ void goToPassClerkLine(int arg){
 	for(unsigned int k=0; k<customer_data.size(); k++){
 		if(customer_data[k]->SSN == arg){
 			if(customer_data[k]->verified == false){
+				cout<<"    "<<currentThread->getName()<<" is being punished by PassportClerk["<<myLine<<"]"<<endl;
 				int yield_random = rand() % 901 + 100;
 				for(int i=0; i<yield_random; i++){
 					currentThread->Yield();
@@ -533,6 +563,9 @@ void passGetCustomer(int arg){
 	}
 }
 
+void goToCashierLine(int arg){}
+
+void cashGetCustomer(int arg){}
 
 void ThreadTest()
 {
