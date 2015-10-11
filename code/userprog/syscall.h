@@ -29,6 +29,7 @@
 #define SC_Close	8
 #define SC_Fork		9
 #define SC_Yield	10
+#define SC_CreateLock 11
 
 #define MAXFILENAME 256
 
@@ -125,6 +126,12 @@ void Fork(void (*func)());
  * or not. 
  */
 void Yield();		
+
+/*
+Create Lock sys call
+*/
+
+int CreateLock(char name);
 
 #endif /* IN_ASM */
 

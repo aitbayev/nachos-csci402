@@ -280,3 +280,19 @@ void ExceptionHandler(ExceptionType which) {
       interrupt->Halt();
     }
 }
+
+void Yield(){
+	currentThread()->Yield();
+}
+
+
+int CreateLock(char *name, int size){
+ 	if (name != ""){
+ 		KernelLock lock(name);
+ 		locks.push_back(lock);
+ 		return locks.size()-1;
+ 	}
+
+}
+
+

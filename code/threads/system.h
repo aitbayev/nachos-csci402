@@ -7,7 +7,6 @@
 
 #ifndef SYSTEM_H
 #define SYSTEM_H
-
 #include "copyright.h"
 #include "utility.h"
 #include "thread.h"
@@ -15,6 +14,14 @@
 #include "interrupt.h"
 #include "stats.h"
 #include "timer.h"
+#include <vector>
+#include "synch.h"
+
+class AddrSpace;
+using namespace std;
+
+
+extern vector<KernelLock> locks;
 
 // Initialization and cleanup routines
 extern void Initialize(int argc, char **argv); 	// Initialization,
@@ -29,9 +36,13 @@ extern Interrupt *interrupt;			// interrupt status
 extern Statistics *stats;			// performance metrics
 extern Timer *timer;				// the hardware alarm clock
 
+//extern vector<KernelCondition> conditions;
+
 #ifdef USER_PROGRAM
 #include "machine.h"
+
 extern Machine* machine;	// user program memory and registers
+
 #endif
 
 #ifdef FILESYS_NEEDED 		// FILESYS or FILESYS_STUB 
@@ -48,5 +59,24 @@ extern SynchDisk   *synchDisk;
 #include "post.h"
 extern PostOffice* postOffice;
 #endif
+
+struct KernelLock{
+	Lock *lock;
+	AddrSpace *adrrSpace;
+	bool isTobeDeleted;
+
+};
+
+extern vector<KernelLock> locks;
+
+struct KernelCV{
+	Condition *condition;
+	AddrSpace *adrrSpace;
+	bool isTobeDeleted;
+
+};
+
+extern vector<KernelCV> conditions;
+
 
 #endif // SYSTEM_H

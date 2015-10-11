@@ -43,15 +43,12 @@ __start:
  */
 
 	.globl Halt
-	.ent	Halt
+    .ent  Halt
 Halt:
-	addiu $2,$0,SC_Halt
-	syscall
-	j	$31
-	.end Halt
-
-	.globl Exit
-	.ent	Exit
+   addiu $2,$0,SC_Halt
+   syscall
+   j     $31
+   .end Halt
 Exit:
 	addiu $2,$0,SC_Exit
 	syscall

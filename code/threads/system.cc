@@ -7,6 +7,11 @@
 
 #include "copyright.h"
 #include "system.h"
+#include "addrspace.h"
+
+
+vector <KernelLock> locks(100);
+vector <KernelCV> conditions(100);
 
 // This defines *all* of the global data structures used by Nachos.
 // These are all initialized and de-allocated by this file.
@@ -19,6 +24,7 @@ Statistics *stats;			// performance metrics
 Timer *timer;				// the hardware timer device,
 					// for invoking context switches
 
+
 #ifdef FILESYS_NEEDED
 FileSystem  *fileSystem;
 #endif
@@ -29,6 +35,7 @@ SynchDisk   *synchDisk;
 
 #ifdef USER_PROGRAM	// requires either FILESYS or FILESYS_STUB
 Machine *machine;	// user program memory and registers
+
 #endif
 
 #ifdef NETWORK
