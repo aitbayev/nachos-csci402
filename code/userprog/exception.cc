@@ -151,14 +151,14 @@ void Write_Syscall(unsigned int vaddr, int len, int id) {
     if ( id == ConsoleInput) return;
     
     if ( !(buf = new char[len]) ) {
-	printf("%s","Error allocating kernel buffer for write!\n");
-	return;
+		printf("%s","Error allocating kernel buffer for write!\n");
+		return;
     } else {
         if ( copyin(vaddr,len,buf) == -1 ) {
-	    printf("%s","Bad pointer passed to to write: data not written\n");
-	    delete[] buf;
-	    return;
-	}
+	    	printf("%s","Bad pointer passed to to write: data not written\n");
+	   		delete[] buf;
+	   		return;
+		}
     }
 
     if ( id == ConsoleOutput) {
@@ -231,6 +231,401 @@ void Close_Syscall(int fd) {
     }
 }
 
+//exit() syscall
+void Exit_Syscall(){
+
+	processLock -> Acquire();
+	// 1. Thread calls Exit (not the last executing thread in process)
+	// 2. Last executing thread in last process
+	// 3. Last executing thread in a process- not last process and still left in waitQueue
+	if(threadCounter == 1 && processCounter > 1){
+		currentThread -> space = NULL;
+		processCounter--;
+		
+		for(unsigned int i=0; i < currentThread -> space -> getNumPages(); i++){
+			delete currentThread -> space;
+		}
+		
+		processLock -> Release();
+		currentThread -> Finish();
+	}
+	else if(threadCounter == 1 && processCounter == 1){
+		for(unsigned int i=0; i < currentThread -> space -> getNumPages(); i++){
+			delete currentThread -> space;
+		}
+		
+		processLock -> Release();
+		interrupt->Halt();
+	}
+	else{
+		threadCounter--;
+		processLock -> Release();
+		currentThread -> Finish();
+	}
+}
+
+
+void Yield_Syscall(){
+	currentThread->Yield();
+}
+
+//create lock syscall implementation
+int CreateLock_Syscall(unsigned int name, int len){
+
+	
+	char *buf = new char[len+1];	// Kernel buffer to put the name in
+
+	 if ( !(buf = new char[len]) ) {
+		printf("%s","Error allocating kernel buffer for create lock!\n");
+		return -1;
+    } else {
+        if ( copyin(name,len,buf) == -1 ) {
+	   		printf("%s","Bad pointer passed to to create: data not written\n");
+	    	delete[] buf;
+	    	return -1;
+		}
+    }
+    
+ 	if (len > 0  && lockIndex < maxLockTableSize && len < 40){
+ 		locksTableLock->Acquire();
+ 		
+ 		locks[lockIndex].lock = new Lock(buf);
+ 		locks[lockIndex].addrSpace = currentThread->space;
+ 		
+ 		locks[lockIndex].isToBeDeleted = false;
+ 		locks[lockIndex].counter = 0;
+ 		
+ 		int index = lockIndex;
+ 		lockIndex++;
+ 		
+ 		cout<<"Lock "<<locks[index].lock->getName()<<", with index "<<index<<" was created"<<endl;
+ 		locksTableLock->Release();
+ 		return index;
+ 	
+ 	}
+ 	else if (lockIndex >= maxLockTableSize){
+ 		cout<<"Lock table is full"<<endl;
+ 		return -1;
+ 	}
+ 	else if(len <= 0){
+ 		cout<<"Invalid lock name: lock name is too short"<<endl;
+ 		return -1;
+ 	}
+ 	else if(len>=40){
+ 		cout<<"Invalid lock name: name is too long"<<endl;
+ 		return -1;
+ 	}
+ 	return -1;
+}
+
+//destroy lock syscall implementation
+void DestroyLock_Syscall(int index){
+	if (index<0 || index >= maxLockTableSize){
+		cout<<"Invalid index"<<endl;
+		return;
+	}
+	else{
+		if (locks[index].lock == NULL){
+			cout<<"No lock at given location"<<endl;
+			return;
+		}
+		locksTableLock->Acquire();
+		if (locks[index].counter > 0){
+			
+			locks[index].isToBeDeleted = true;
+			locksTableLock->Release();
+			cout<<"Lock is busy"<<endl;
+			return;
+		}
+		if (locks[index].counter == 0 || locks[index].isToBeDeleted == true){
+			cout<<"Lock "<<locks[index].lock->getName()<<" is deleted"<<endl;
+			locks[index].lock = NULL;
+			//locks.erase(locks.begin()+index);
+			locksTableLock->Release();
+		}
+		
+	   
+	}
+}
+
+//Acquire lock syscall implementation
+
+void Acquire_Syscall(int index){
+	
+	if (index < 0  || index >= maxLockTableSize){
+		cout<<"Invalid index "<<endl;
+		
+		return;
+	}
+	else{
+		if (locks[index].lock == NULL){
+			cout<<"No lock at given location"<<endl;
+			return;
+		}
+		locksTableLock->Acquire();
+		if (locks[index].addrSpace == currentThread->space){
+			cout<<"Acquired "<<locks[index].lock->getName()<<" lock"<<endl;
+			locks[index].counter++;
+			locks[index].lock->Acquire();
+			locksTableLock->Release();
+		}
+		else{
+			cout<<"the thread doesn't belong to the process"<<endl;
+			locksTableLock->Release();
+			return;
+		}
+	}
+}
+
+void Release_Syscall(int index){
+	locksTableLock->Acquire();
+	if (index < 0 || locks[index].lock == NULL || index >= maxLockTableSize){
+		cout<<"Invalid index or lock doesn't exist"<<endl;
+		locksTableLock->Release();
+		return;
+	}
+	else{
+		if (locks[index].addrSpace == currentThread->space){
+			cout<<"Released "<<locks[index].lock->getName()<<" lock"<<endl;
+			locks[index].counter--;
+			locks[index].lock->Release();
+			locksTableLock->Release();
+			return;
+		}
+		else{
+			cout<<" the thread doesn't belong to the process"<<endl;
+			locksTableLock->Release();
+			return;
+		}
+	
+	}
+
+}
+
+//create codition syscall implementation
+int CreateCondition_Syscall(unsigned int name, int len){
+
+	
+	char *buf = new char[len+1];	// Kernel buffer to put the name in
+
+	 if ( !(buf = new char[len]) ) {
+		printf("%s","Error allocating kernel buffer for create condition variable!\n");
+		return -1;
+    } else {
+        if ( copyin(name,len,buf) == -1 ) {
+	   		printf("%s","Bad pointer passed to to create: data not written for condition\n");
+	    	delete[] buf;
+	    	return -1;
+		}
+    }
+    
+ 	if (len > 0  && conditionIndex < maxConditionTableSize && len < 40){
+ 		conditionsTableLock->Acquire();
+ 		
+ 		conditions[conditionIndex].condition = new Condition(buf);
+ 		conditions[conditionIndex].isToBeDeleted = currentThread->space;
+ 		
+ 		conditions[conditionIndex].isToBeDeleted = false;
+ 		conditions[conditionIndex].counter = 0;
+ 		//conditions[conditionIndex].busy = false; //???????????????
+ 		
+ 		int index = conditionIndex;
+ 		conditionIndex++;
+ 		
+ 		
+ 		cout<<"Condition variable "<<conditions[index].condition->getName()<<", with index "<<index<<" was created"<<endl;
+ 		conditionsTableLock->Release();
+ 		return index;
+ 	
+ 	}
+ 	else if (conditionIndex >= maxConditionTableSize){
+ 		cout<<"Condition table is full"<<endl;
+ 		return -1;
+ 	}
+ 	else{
+ 		cout<<"Invalid condition name"<<endl;
+ 		return -1;
+ 	}
+}
+
+
+void DestroyCondition_Syscall(int index){
+
+if (index<0 || index >= maxConditionTableSize){
+		cout<<"Invalid condition variable index"<<endl;
+		return;
+	}
+	else{
+		if (conditions[index].condition == NULL){
+			cout<<"No condition variable at given location"<<endl;
+			return;
+		}
+		conditionsTableLock->Acquire();
+		if (conditions[index].counter > 0){
+			
+			conditions[index].isToBeDeleted = true;
+			conditionsTableLock->Release();
+			cout<<"Condition variable is being used"<<endl;
+			return;
+		}
+		if (conditions[index].counter == 0 || conditions[index].isToBeDeleted == true){
+			cout<<"Condition "<<conditions[index].condition->getName()<<" is deleted"<<endl;
+			conditions[index].condition = NULL;
+			//locks.erase(locks.begin()+index);
+			conditionsTableLock->Release();
+		}
+	}
+}
+// Wait Condition syscall
+
+void Wait_Syscall(int lk, int cv){
+	conditionsTableLock -> Acquire();
+	if(cv < 0 || cv >= maxConditionTableSize){ //lack second half
+		cout<<"CV index out of scope"<<endl;
+		conditionsTableLock -> Release();
+		return;
+	}
+	if(conditions[cv].condition == NULL){
+		cout<<"No such condition variable exist"<<endl;
+		conditionsTableLock -> Release();
+		return;
+	}
+	if(conditions[cv].adrrSpace != currentThread -> space){
+		cout<<"Condition you requested doesn't belong to the current thread"<<endl;
+		conditionsTableLock->Release();
+		return;
+	}
+	conditions[cv].counter++;
+	conditionsTableLock -> Release();
+	
+	locksTableLock -> Acquire();
+	if(lk < 0 || lk >= maxConditionTableSize){ //lack second half
+		cout<<"Index of lock out of scope"<<endl;
+		locksTableLock -> Release();
+		return;
+	}
+	if(locks[lk].lock == NULL){
+		cout<<"No such lock exist"<<endl;
+		locksTableLock -> Release();
+		return;
+	}
+	if(locks[lk].addrSpace != currentThread -> space){
+		cout<<"Lock you requested doesn't belong to the current thread"<<endl;
+		locksTableLock -> Release();
+		return;
+	}
+	
+	
+	locks[lk].counter++;
+	locksTableLock -> Release();
+	cout<<"Condition variable "<<conditions[cv].condition->getName()<<" waiting on "<< locks[lk].lock->getName()<<endl;
+
+	conditions[cv].condition -> Wait(locks[lk].lock);
+}
+
+void Signal_Syscall(int cv, int lk){
+	conditionsTableLock -> Acquire();
+	if(cv < 0 || cv>=maxConditionTableSize){ //lack second half
+	cout<<"Index of CV is out of scope"<<endl;
+		conditionsTableLock -> Release();
+		return;
+	}
+		if(conditions[cv].condition == NULL){
+		cout<<"No such condition variable exist"<<endl;
+		conditionsTableLock -> Release();
+		return;
+	}
+	
+	if(conditions[cv].adrrSpace != currentThread -> space){
+		cout<<"Condition variable you requested doesn't belong to the current thread"<<endl;
+		conditionsTableLock -> Release();
+		return;
+	}
+
+	conditions[cv].counter--;
+	conditionsTableLock -> Release();
+	
+	locksTableLock -> Acquire();
+	if(lk < 0 || lk >= maxLockTableSize){ //lack second half
+		cout<<"No such lock exist"<<endl;
+		locksTableLock -> Release();
+		return;
+	}
+	if(locks[lk].lock == NULL){
+		cout<<"No such lock exist"<<endl;
+		locksTableLock-> Release();
+		return;
+	}
+	if(locks[lk].addrSpace != currentThread -> space){
+	    cout<<"Lock you requested doesn't belong to the current thread"<<endl;
+		locksTableLock -> Release();
+		return;
+	}
+	
+	locks[lk].counter--;
+	cout<<"Condition variable "<<conditions[cv].condition->getName()<<" signaling on  "<< locks[lk].lock->getName()<<endl;
+
+	conditions[cv].condition -> Signal(locks[lk].lock);
+	locksTableLock -> Release();
+}
+
+void Broadcast_Syscall(int lk, int cv){
+	int temp = 0;
+	conditionsTableLock -> Acquire();
+	if(cv < 0 || cv >= maxConditionTableSize){ //lack second half
+		cout<<"Index of CV is out of scope"<<endl;
+		conditionsTableLock -> Release();
+		return;
+	}
+	if(conditions[cv].condition == NULL){
+		conditionsTableLock -> Release();
+		cout<<"No such condition variable exist"<<endl;
+		return;
+	}
+	if(conditions[cv].adrrSpace != currentThread -> space){
+		cout<<"Condition variable you requested doesn't belong to the current thread"<<endl;
+		conditionsTableLock -> Release();
+		return;
+	}
+	
+	temp = conditions[cv].counter;
+	conditions[cv].counter--;
+	conditionsTableLock -> Release();
+	
+	locksTableLock -> Acquire();
+	if(locks[lk].addrSpace != currentThread -> space){
+		cout<<"Index of lock is out of scope"<<endl;
+		locksTableLock -> Release();
+		return;
+	}
+	if(locks[lk].lock == NULL){
+		locksTableLock -> Release();
+		cout<<"No such lock exist"<<endl;
+		return;
+	}
+	if(lk < 0 || lk>=maxLockTableSize){ //lack second half
+		cout<<"Lock you requested doesn't belong to the current thread"<<endl;
+		locksTableLock -> Release();
+		return;
+	}
+	
+	if(conditions[cv].counter - temp < 0){
+		locks[lk].counter = 0;
+	}
+	else{
+		conditions[cv].counter = locks[lk].counter - temp;
+	}
+	cout<<"Condition variable "<<conditions[cv].condition->getName()<<" broadcasting on "<< locks[lk].lock->getName()<<endl;
+	conditions[cv].condition -> Broadcast(locks[lk].lock);
+	locksTableLock -> Release();
+
+}
+
+void PrintNum_Syscall(int num){
+	cout<<num<<endl;
+}
+
+
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?
     int rv=0; 	// the return value from a syscall
@@ -239,33 +634,99 @@ void ExceptionHandler(ExceptionType which) {
 	switch (type) {
 	    default:
 		DEBUG('a', "Unknown syscall - shutting down.\n");
+		
 	    case SC_Halt:
 		DEBUG('a', "Shutdown, initiated by user program.\n");
 		interrupt->Halt();
 		break;
+		
 	    case SC_Create:
 		DEBUG('a', "Create syscall.\n");
 		Create_Syscall(machine->ReadRegister(4), machine->ReadRegister(5));
 		break;
+		
 	    case SC_Open:
 		DEBUG('a', "Open syscall.\n");
 		rv = Open_Syscall(machine->ReadRegister(4), machine->ReadRegister(5));
 		break;
+		
 	    case SC_Write:
 		DEBUG('a', "Write syscall.\n");
 		Write_Syscall(machine->ReadRegister(4),
 			      machine->ReadRegister(5),
 			      machine->ReadRegister(6));
 		break;
+		
 	    case SC_Read:
 		DEBUG('a', "Read syscall.\n");
 		rv = Read_Syscall(machine->ReadRegister(4),
 			      machine->ReadRegister(5),
 			      machine->ReadRegister(6));
 		break;
+		
 	    case SC_Close:
 		DEBUG('a', "Close syscall.\n");
 		Close_Syscall(machine->ReadRegister(4));
+		break;
+		
+		case SC_Yield:
+		DEBUG('a', "Yield syscall.\n");
+		Yield_Syscall();
+		break;
+		
+		case SC_Exit:
+		DEBUG('a', "Exit syscall.\n");
+		Exit_Syscall();
+		break;
+	
+		case SC_CreateLock:					
+		DEBUG('a', "Create Lock.\n");
+		rv=CreateLock_Syscall(machine->ReadRegister(4), machine->ReadRegister(5));
+		break;
+		
+		case SC_DestroyLock:					
+		DEBUG('a', "Destroy Lock.\n");
+		DestroyLock_Syscall(machine->ReadRegister(4));
+		break;
+		
+		case SC_Acquire:					
+		DEBUG('a', "Acquire Lock.\n");
+		Acquire_Syscall(machine->ReadRegister(4));
+		break;
+		
+		case SC_Release:					
+		DEBUG('a', "Release Lock.\n");
+		Release_Syscall(machine->ReadRegister(4));
+		break;
+		
+		case SC_CreateCondition:					
+		DEBUG('a', "Create condition.\n");
+		rv = CreateCondition_Syscall(machine->ReadRegister(4), machine->ReadRegister(5));
+		break;
+		
+		case SC_DestroyCondition:					
+		DEBUG('a', "Destroy Condition.\n");
+		DestroyCondition_Syscall(machine->ReadRegister(4));
+		break;
+		
+		case SC_Wait:
+		DEBUG('a', "Wait(CV) syscall.\n");
+		Wait_Syscall(machine->ReadRegister(4),
+					machine->ReadRegister(5));
+		break;
+		case SC_Signal:
+		DEBUG('a', "Signal(CV) syscall.\n");
+		Signal_Syscall(machine->ReadRegister(4),
+					machine->ReadRegister(5));
+		break;
+		case SC_Broadcast:
+		DEBUG('a', "Broadcast(CV) syscall.\n");
+		Broadcast_Syscall(machine->ReadRegister(4),
+					machine->ReadRegister(5));
+		break;
+		case SC_PrintNum:
+		DEBUG('a', "PrintNum() system call.\n");
+		PrintNum_Syscall(machine->ReadRegister(4));
 		break;
 	}
 
@@ -280,19 +741,3 @@ void ExceptionHandler(ExceptionType which) {
       interrupt->Halt();
     }
 }
-
-void Yield(){
-	currentThread()->Yield();
-}
-
-
-int CreateLock(char *name, int size){
- 	if (name != ""){
- 		KernelLock lock(name);
- 		locks.push_back(lock);
- 		return locks.size()-1;
- 	}
-
-}
-
-

@@ -1,4 +1,4 @@
-m // addrspace.cc 
+// addrspace.cc 
 //	Routines to manage address spaces (executing user programs).
 //
 //	In order to run a user program, you must:
@@ -228,6 +228,11 @@ AddrSpace::InitRegisters()
 //
 //	For now, nothing!
 //----------------------------------------------------------------------
+
+unsigned int AddrSpace::getNumPages(){
+	return numPages;
+}
+
 
 void AddrSpace::SaveState() 
 {}

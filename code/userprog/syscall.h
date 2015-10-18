@@ -30,6 +30,15 @@
 #define SC_Fork		9
 #define SC_Yield	10
 #define SC_CreateLock 11
+#define SC_DestroyLock 12
+#define SC_Acquire 13
+#define SC_Release 14
+#define SC_CreateCondition 15
+#define SC_DestroyCondition 16
+#define SC_Wait 17
+#define SC_Signal 18 
+#define SC_Broadcast 19
+#define SC_PrintNum 20
 
 #define MAXFILENAME 256
 
@@ -131,7 +140,53 @@ void Yield();
 Create Lock sys call
 */
 
-int CreateLock(char name);
+int CreateLock(char *buffer, int size);
+
+/*
+Destroy Lock sys call
+*/
+void DestroyLock(int index);
+
+/* 
+Acquire lock syscall
+*/
+
+void Acquire(int index);
+
+/* 
+Release lock syscall
+*/
+
+void Release(int index);
+
+/* 
+Create condition variable syscall
+*/
+int CreateCondition(char *buffer, int size);
+
+
+/*
+Destroy condition variable syscall
+*/
+void DestroyCondition(int index);
+
+/*
+Wait condition variable syscall
+*/
+void Wait(int index, int lock);
+
+/*
+Signal condition variable syscall
+*/
+void Signal(int index, int lock);
+
+/*
+Broadcast condition variable syscall
+*/
+void Broadcast(int index, int lock);
+
+
+void PrintNum(int num);
 
 #endif /* IN_ASM */
 
