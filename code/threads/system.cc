@@ -9,10 +9,6 @@
 #include "system.h"
 #include "addrspace.h"
 
-
-vector <KernelLock> locks(100);
-vector <KernelCV> conditions(100);
-
 // This defines *all* of the global data structures used by Nachos.
 // These are all initialized and de-allocated by this file.
 
@@ -35,6 +31,21 @@ SynchDisk   *synchDisk;
 
 #ifdef USER_PROGRAM	// requires either FILESYS or FILESYS_STUB
 Machine *machine;	// user program memory and registers
+
+int threadCounter = 0;
+int processCounter = 0;
+Lock *processLock;
+
+int maxConditionTableSize = 100;
+KernelCV conditions[100];
+Lock *conditionsTableLock;
+int conditionIndex = 0;
+
+int maxLockTableSize = 100;
+KernelLock locks[100];
+Lock *locksTableLock;
+int lockIndex = 0;
+
 
 #endif
 
@@ -90,6 +101,9 @@ Initialize(int argc, char **argv)
 
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program
+    locksTableLock = new Lock("LocksTableLock");
+    conditionsTableLock = new Lock("ConditionsTableLock");
+    processLock = new Lock("ProcessLock");
 #endif
 #ifdef FILESYS_NEEDED
     bool format = FALSE;	// format disk

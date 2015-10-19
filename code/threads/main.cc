@@ -106,58 +106,58 @@ extern void Problem2(int, int, int, int, int), TestSuite(void);
         if (!strcmp(*argv, "-T"))               // Test Suite
             TestSuite();
         
-        if (!strcmp(*argv, "-P2"))   { 
-                 // Problem 2
-        cout<<"Press 1 if want to choose Test Case 1 (Customers always take the shortest line, but no 2 customers ever choose the same shortest line at the same time)"<<endl;
-        cout<<"Press 2 if want to choose Test Case 2 (Managers only read one from one Clerk's total money received, at a time.)"<<endl;
-        cout<<"Press 3 if want to choose Test Case 3 (Customers do not leave until they are given their passport by the Cashier. The Cashier does not start on another customer until they know that the last Customer has left their area)"<<endl;
-        cout<<"Press 4 if want to choose Test Case 4 (Clerks go on break when they have no one waiting in their line)"<<endl;
-        cout<<"Press 5 if want to choose Test Case 5 (Managers get Clerks off their break when lines get too long)"<<endl;
-        cout<<"Press 6 if want to choose Test Case 6 (Total sales never suffers from a race condition)"<<endl;
-        cout<<"Press 7 if want to choose Test Case 7 (The behavior of Customers is proper when Senators arrive. This is before, during, and after.)"<<endl;
-        cout<<"Press 8 if want to ran your own test case"<<endl;
-        int choice;
-        cin>>choice;
-        if (choice == 1){
-        	Problem2(5, 2, 2, 2, 2);
-        }
-        else if(choice ==2){
-        	Problem2(5, 2, 2, 2, 2);
-        }
-        else if (choice == 3){
-        	Problem2(5, 2, 2, 2, 2);
-        }
-        else if(choice ==4){
-        	Problem2(5, 2, 2, 2, 2);
-        }
-        else if (choice == 5){
-        	Problem2(5, 2, 2, 2, 2);
-        }
-        else if (choice == 6){
-        	Problem2(5, 2, 2, 2, 2);
-        }
-        else if (choice == 7){
-        	Problem2(5, 2, 2, 2, 2);
-        }
-        else if (choice == 8){
-         cout<<"Enter number of customers: ";
-        int cust;
-        cin>>cust;
-         cout<<"Enter number of application clerks: ";
-        int app;
-        cin>>app;
-         cout<<"Enter number of picture clerks: ";
-        int pic;
-        cin>>pic;
-         cout<<"Enter number of passport clerks: ";
-        int pass;
-        cin>>pass;
-         cout<<"Enter number of cashiers: ";
-        int cash;
-        cin>>cash;
-        	Problem2(cust, app, pic, pass, cash);
-         }
-         }
+        if (!strcmp(*argv, "-P2"))   //{
+                  Problem2(5, 2, 2, 2, 2);
+        // cout<<"Press 1 if want to choose Test Case 1 (Customers always take the shortest line, but no 2 customers ever choose the same shortest line at the same time)"<<endl;
+//         cout<<"Press 2 if want to choose Test Case 2 (Managers only read one from one Clerk's total money received, at a time.)"<<endl;
+//         cout<<"Press 3 if want to choose Test Case 3 (Customers do not leave until they are given their passport by the Cashier. The Cashier does not start on another customer until they know that the last Customer has left their area)"<<endl;
+//         cout<<"Press 4 if want to choose Test Case 4 (Clerks go on break when they have no one waiting in their line)"<<endl;
+//         cout<<"Press 5 if want to choose Test Case 5 (Managers get Clerks off their break when lines get too long)"<<endl;
+//         cout<<"Press 6 if want to choose Test Case 6 (Total sales never suffers from a race condition)"<<endl;
+//         cout<<"Press 7 if want to choose Test Case 7 (The behavior of Customers is proper when Senators arrive. This is before, during, and after.)"<<endl;
+//         cout<<"Press 8 if want to ran your own test case"<<endl;
+//         int choice;
+//         cin>>choice;
+//         if (choice == 1){
+//         	Problem2(5, 2, 2, 2, 2);
+//         }
+//         else if(choice ==2){
+//         	Problem2(5, 2, 2, 2, 2);
+//         }
+//         else if (choice == 3){
+//         	Problem2(5, 2, 2, 2, 2);
+//         }
+//         else if(choice ==4){
+//         	Problem2(5, 2, 2, 2, 2);
+//         }
+//         else if (choice == 5){
+//         	Problem2(5, 2, 2, 2, 2);
+//         }
+//         else if (choice == 6){
+//         	Problem2(5, 2, 2, 2, 2);
+//         }
+//         else if (choice == 7){
+//         	Problem2(5, 2, 2, 2, 2);
+//         }
+//         else if (choice == 8){
+//          cout<<"Enter number of customers: ";
+//         int cust;
+//         cin>>cust;
+//          cout<<"Enter number of application clerks: ";
+//         int app;
+//         cin>>app;
+//          cout<<"Enter number of picture clerks: ";
+//         int pic;
+//         cin>>pic;
+//          cout<<"Enter number of passport clerks: ";
+//         int pass;
+//         cin>>pass;
+//          cout<<"Enter number of cashiers: ";
+//         int cash;
+//         cin>>cash;
+//         	Problem2(cust, app, pic, pass, cash);
+//          }
+//          }
 #endif THREADS
 
 #ifdef USER_PROGRAM
