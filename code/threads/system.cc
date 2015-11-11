@@ -46,11 +46,22 @@ KernelLock locks[100];
 Lock *locksTableLock;
 int lockIndex = 0;
 
+int mv_index = 0;
+MV MVs[100]; 
+
+ServerLock server_locks[100];
+ServerLock server_lock;
+ServerCV server_cvs[100];
+int server_lock_counter = 0;
+int server_cv_counter = 0;
+int server_mv_counter = 0;
 
 #endif
 
 #ifdef NETWORK
 PostOffice *postOffice;
+
+
 #endif
 
 

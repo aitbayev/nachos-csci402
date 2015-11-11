@@ -24,7 +24,7 @@
 #include "interrupt.h"
 #include "system.h"
 #include <iostream>
-using namespace std;
+
 // String definitions for debugging messages
 
 static char *intLevelNames[] = { "off", "on"};

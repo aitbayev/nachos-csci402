@@ -39,6 +39,10 @@
 #define SC_Signal 18 
 #define SC_Broadcast 19
 #define SC_PrintNum 20
+#define SC_CreateMV 21
+#define SC_GetMV 22
+#define SC_SetMV 23
+#define SC_DestroyMV 24 
 
 #define MAXFILENAME 256
 
@@ -106,8 +110,6 @@ void Create(char *name, int size);
  */
 OpenFileId Open(char *name, int size);
 
-/* Write "size" bytes from "buffer" to the open file. */
-void Write(char *buffer, int size, OpenFileId id);
 
 /* Read "size" bytes from the open file into "buffer".  
  * Return the number of bytes actually read -- if the open file isn't
@@ -116,6 +118,10 @@ void Write(char *buffer, int size, OpenFileId id);
  * you should always wait until you can return at least one character).
  */
 int Read(char *buffer, int size, OpenFileId id);
+
+/* Write "size" bytes from "buffer" to the open file. */
+void Write(char *buffer, int size, OpenFileId id);
+
 
 /* Close the file, we're done reading and writing to it. */
 void Close(OpenFileId id);
@@ -187,6 +193,16 @@ void Broadcast(int index, int lock);
 
 
 void PrintNum(int num);
+/*
+MV RPCs
+*/
+int CreateMV(char *buffer, int size);
+
+int GetMV(int index);
+
+int SetMV(int index, int val);
+
+int DestroyMV(int index);
 
 #endif /* IN_ASM */
 

@@ -31,7 +31,7 @@ CPP = $(GCCDIR)cpp
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt matmult sort testfiles
+all: halt matmult sort testfiles passport_office network_test client1 client2 client3 client4 client5
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.s > strt.s
@@ -62,5 +62,47 @@ testfiles: testfiles.o start.o
 	$(LD) $(LDFLAGS) start.o testfiles.o -o testfiles.coff
 	../bin/coff2noff testfiles.coff testfiles
 
+passport_office.o: passport_office.c
+	$(CC) $(CFLAGS) -c passport_office.c
+passport_office: passport_office.o start.o
+	$(LD) $(LDFLAGS) start.o passport_office.o -o passport_office.coff
+	../bin/coff2noff passport_office.coff passport_office
+
+network_test.o: network_test.c
+	$(CC) $(CFLAGS) -c network_test.c
+network_test: network_test.o start.o
+	$(LD) $(LDFLAGS) start.o network_test.o -o network_test.coff
+	../bin/coff2noff network_test.coff network_test
+	
+client1.o: client1.c
+	$(CC) $(CFLAGS) -c client1.c
+client1: client1.o start.o
+	$(LD) $(LDFLAGS) start.o client1.o -o client1.coff
+	../bin/coff2noff client1.coff client1
+
+client2.o: client2.c
+	$(CC) $(CFLAGS) -c client2.c
+client2: client2.o start.o
+	$(LD) $(LDFLAGS) start.o client2.o -o client2.coff
+	../bin/coff2noff client2.coff client2
+	
+client3.o: client3.c
+	$(CC) $(CFLAGS) -c client3.c
+client3: client3.o start.o
+	$(LD) $(LDFLAGS) start.o client3.o -o client3.coff
+	../bin/coff2noff client3.coff client3
+
+client4.o: client4.c
+	$(CC) $(CFLAGS) -c client4.c
+client4: client4.o start.o
+	$(LD) $(LDFLAGS) start.o client4.o -o client4.coff
+	../bin/coff2noff client4.coff client4
+	
+client5.o: client5.c
+	$(CC) $(CFLAGS) -c client5.c
+client5: client5.o start.o
+	$(LD) $(LDFLAGS) start.o client5.o -o client5.coff
+	../bin/coff2noff client5.coff client5
+	
 clean:
 	rm -f *.o *.coff

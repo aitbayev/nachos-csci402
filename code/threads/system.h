@@ -73,6 +73,51 @@ struct KernelCV{
 	int counter;
 };
 
+
+struct MV{
+	char *name;
+	int ID;
+	int value;
+
+};
+
+struct ServerLock{
+	char *name;
+	int state; //1 if available 
+	int machineID;
+	int mailbox;
+	List *lockWaitQueue;
+	int usage_counter;
+	bool isToBeDeleted;
+	int id;
+	bool deleted;
+};
+
+
+struct ServerCV{
+	char *name;
+	int serverConditionLock; //index to the array
+	List *cvWaitQueue;
+	int machineID;
+	int mailbox;
+	bool isToBeDeleted;
+	int usage_counter;
+	int id;
+	int deleted;
+};
+
+struct WaitingClient{
+	int machineID;
+	int mailbox;
+};
+
+extern MV MVs[100];
+extern int mv_index;
+extern ServerLock server_locks[100];
+extern ServerCV server_cvs[100];
+extern int server_lock_counter;
+extern int server_cv_counter;
+
 extern KernelCV conditions[];
 extern Lock *conditionsTableLock;
 extern int conditionIndex;

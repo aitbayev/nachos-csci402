@@ -2,7 +2,7 @@
  *	Simple program to test the file handling system calls
  */
 
-#include "syscall.h"
+#include "../userprog/syscall.h"
 
 
 

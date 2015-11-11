@@ -22,6 +22,9 @@
 #include "network.h"
 #include "post.h"
 #include "interrupt.h"
+#include "syscall.h"
+#include "../userprog/server.cc"
+
 
 // Test out message delivery, by doing the following:
 //	1. send a message to the machine with ID "farAddr", at mail box #0
@@ -33,50 +36,83 @@
 void
 MailTest(int farAddr)
 {
-    PacketHeader outPktHdr, inPktHdr;
-    MailHeader outMailHdr, inMailHdr;
-    char *data = "Hello there!";
-    char *ack = "Got it!";
-    char buffer[MaxMailSize];
+//     PacketHeader outPktHdr, inPktHdr;
+//     MailHeader outMailHdr, inMailHdr;
+//     char *data = "Hello there!";
+//     char *ack = "Got it!";
+//     char buffer[MaxMailSize];
+// 
+//     // construct packet, mail header for original message
+//     // To: destination machine, mailbox 0
+//     // From: our machine, reply to: mailbox 1
+//     outPktHdr.to = farAddr;		
+//     outMailHdr.to = 0;
+//     outMailHdr.from = 1;
+//     outMailHdr.length = strlen(data) + 1;
+// 
+//     // Send the first message
+//     bool success = postOffice->Send(outPktHdr, outMailHdr, data); 
+// 
+//     if ( !success ) {
+//       printf("The postOffice Send failed. You must not have the other Nachos running. Terminating Nachos.\n");
+//       interrupt->Halt();
+//     }
+// 
+//     // Wait for the first message from the other machine
+//     postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+//     printf("Got \"%s\" from %d, box %d\n",buffer,inPktHdr.from,inMailHdr.from);
+//     fflush(stdout);
+// 
+//     // Send acknowledgement to the other machine (using "reply to" mailbox
+//     // in the message that just arrived
+//     outPktHdr.to = inPktHdr.from;
+//     outMailHdr.to = inMailHdr.from;
+//     outMailHdr.length = strlen(ack) + 1;
+//     success = postOffice->Send(outPktHdr, outMailHdr, ack); 
+// 
+//     if ( !success ) {
+//       printf("The postOffice Send failed. You must not have the other Nachos running. Terminating Nachos.\n");
+//       interrupt->Halt();
+//     }
+// 
+//     // Wait for the ack from the other machine to the first message we sent.
+//     postOffice->Receive(1, &inPktHdr, &inMailHdr, buffer);
+//     printf("Got \"%s\" from %d, box %d\n",buffer,inPktHdr.from,inMailHdr.from);
+//     fflush(stdout);
+// 
+//     // Then we're done!
+//     interrupt->Halt();
+}
+//successful test of creating, deleting, setting and getting MV, no bad args passed
+void MV_test(){
 
-    // construct packet, mail header for original message
-    // To: destination machine, mailbox 0
-    // From: our machine, reply to: mailbox 1
-    outPktHdr.to = farAddr;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
-    outMailHdr.length = strlen(data) + 1;
+	// int mv1 = CreateMV("abc", 3);
+// 	cout<<"Created MV at index "<<mv1<<endl;
+// 	
+// 	int set = SetMV(mv1, 5);
+// 	
+// 	cout<<"Set value of MV at index "<< set<<endl;
+// 	
+// 	int get = GetMV(mv1);
+// 	cout<<"Get value of MV at index 0 = " <<get<<endl;
+// 	
+// 	int removeMV = DestroyMV(mv1);
+// 	
+// 	if (removeMV){
+// 		cout<<"MV was deleted at index 0"<<endl;
+// 	}
+// 	else{
+// 		cout<<"Failed to delete MV at index 0"<<endl;
+// 	}
+}
 
-    // Send the first message
-    bool success = postOffice->Send(outPktHdr, outMailHdr, data); 
+void Lock_test(){
+	
+	//int lock1 = CreateLock("lock", 4);
+	//cout<<"Lock was created at index "<<lock1<<endl;
 
-    if ( !success ) {
-      printf("The postOffice Send failed. You must not have the other Nachos running. Terminating Nachos.\n");
-      interrupt->Halt();
-    }
+}
 
-    // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
-    printf("Got \"%s\" from %d, box %d\n",buffer,inPktHdr.from,inMailHdr.from);
-    fflush(stdout);
-
-    // Send acknowledgement to the other machine (using "reply to" mailbox
-    // in the message that just arrived
-    outPktHdr.to = inPktHdr.from;
-    outMailHdr.to = inMailHdr.from;
-    outMailHdr.length = strlen(ack) + 1;
-    success = postOffice->Send(outPktHdr, outMailHdr, ack); 
-
-    if ( !success ) {
-      printf("The postOffice Send failed. You must not have the other Nachos running. Terminating Nachos.\n");
-      interrupt->Halt();
-    }
-
-    // Wait for the ack from the other machine to the first message we sent.
-    postOffice->Receive(1, &inPktHdr, &inMailHdr, buffer);
-    printf("Got \"%s\" from %d, box %d\n",buffer,inPktHdr.from,inMailHdr.from);
-    fflush(stdout);
-
-    // Then we're done!
-    interrupt->Halt();
+void Server_test(){
+	server();
 }
