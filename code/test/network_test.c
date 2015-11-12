@@ -10,12 +10,13 @@
 	int lk3;
 	int lk4;
 	int lk5;
+	int lk6;
 	
 	int cv1;
 	int cv2;
 	int cv3;
 	int cv4;
-
+	int cv5;
 
 /******** MV********/	
 /* Returns -1 if fails */
@@ -234,6 +235,14 @@ void BroadcastSuccessfully(){
 void BroadcastBadArguments(){
 	Broadcast(10, 10);
 }
+
+/*Broadcast wrong lock*/
+void BroadcastWrongLock(){
+	lk6 = CreateLock("lk6", sizeof("lk6"));
+	cv5 = CreateCondition("cv5", sizeof("cv5"));
+	Broadcast(lk6, cv5);
+}
+
 int main(){	
 /********** MV *************/	
 
@@ -291,6 +300,7 @@ SignalWrongLock();
 
 BroadcastSuccessfully();
 BroadcastBadArguments();
+BroadcastWrongLock();
 
 
 /******** CV TEST ENDS ********/	

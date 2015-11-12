@@ -73,10 +73,10 @@ struct KernelCV{
 	int counter;
 };
 
-
+//monitor variable struct
 struct MV{
 	char *name;
-	int ID;
+	int ID; //individual id of each lock
 	int value;
 
 };
@@ -84,28 +84,28 @@ struct MV{
 struct ServerLock{
 	char *name;
 	int state; //1 if available 
-	int machineID;
+	int machineID; //id of machine that owns lock
 	int mailbox;
-	List *lockWaitQueue;
-	int usage_counter;
-	bool isToBeDeleted;
-	int id;
-	bool deleted;
+	List *lockWaitQueue; //clients waiting on lock
+	int usage_counter; //number of clients using lock
+	bool isToBeDeleted;  //if lock was set to be deleted
+	int id; //individual id of lock
+	bool deleted;  //true if lock is deleted 
 };
 
 
 struct ServerCV{
 	char *name;
-	int serverConditionLock; //index to the array
-	List *cvWaitQueue;
-	int machineID;
+	int serverConditionLock; //index to the lock array
+	List *cvWaitQueue; //list of waiting clients 
+	int machineID; //id of client that has cv
 	int mailbox;
-	bool isToBeDeleted;
-	int usage_counter;
-	int id;
-	int deleted;
+	bool isToBeDeleted; //true if set to be deleted
+	int usage_counter; //number of clients using cv
+	int id; //individual id of cv
+	int deleted; //true if cv is deleted
 };
-
+//client information in wait list
 struct WaitingClient{
 	int machineID;
 	int mailbox;
