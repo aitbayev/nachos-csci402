@@ -68,7 +68,7 @@ void server(){
 				}
 			}
 			//check if array is full
-			if (mv_index >= 100){
+			if (mv_index >= 200){
 				cout<<"Cannot create MV, array is full."<<endl;
 				error = true;
 			}
@@ -190,7 +190,7 @@ void server(){
 				}
 			}
 			//check if array is full
-			if (server_lock_counter>=100){
+			if (server_lock_counter>=200){
 				cout<<"You cannot create locks anymore, table is full."<<endl;
 				error = true;
 			}
@@ -273,7 +273,7 @@ void server(){
 				}
 				//check if the client already owns a lock 
 				if (server_locks[index].machineID == inPktHdr.from && server_locks[index].mailbox == inMailHdr.from){
-					cout<<"Thread already owns the lock"<<endl;
+					cout<<"Machine "<<server_locks[index].machineID <<" already owns the lock "<<server_locks[index].name<<endl;
 					sendReply(-1);	
 				}
 				else{
@@ -282,7 +282,7 @@ void server(){
 						server_locks[index].usage_counter++;
 						//if lock is available then acquire
 						if (server_locks[index].state == 1){
-							cout<<"Machine id "<<inPktHdr.from<<" got the lock"<<endl; 
+							cout<<"Machine id "<<inPktHdr.from<<" got the lock "<< server_locks[index].name<<endl; 
 							server_locks[index].state = 0;
 							server_locks[index].machineID = inPktHdr.from;
 							server_locks[index].mailbox = inMailHdr.from;
@@ -291,10 +291,12 @@ void server(){
 						//if lock is busy add client to waitqueue
 						else{
 							cout<<"The lock is busy"<<endl;
+							server_locks[index].state = 0;
 							WaitingClient *waiting_client = new WaitingClient;
 							waiting_client->machineID = inPktHdr.from;
 							waiting_client->mailbox = inMailHdr.from;
 							server_locks[index].lockWaitQueue->Append((void*)waiting_client);
+							sendReply(-1);
 						}
 					}
 					else{
@@ -354,7 +356,7 @@ void server(){
 									server_locks[index].machineID = client->machineID;
 									server_locks[index].mailbox = client->mailbox;
 									server_locks[index].state = 0; //not available
-									cout<<"Client "<< client->machineID<< " acquired the lock."<<endl;
+									cout<<"Released. Client "<< client->machineID<< " acquired the lock."<<endl;
 									sendReply(1);	
 							}
 						}
@@ -378,7 +380,7 @@ void server(){
 					}
 				}
 				//check if array is full
-				if (server_cv_counter>=100){
+				if (server_cv_counter>=200){
 					cout<<"You cannot create CVs anymore, table is full."<<endl;
 					error = true;
 				}
@@ -495,7 +497,14 @@ void server(){
 									waiting_client = (WaitingClient*)server_locks[lock_index].lockWaitQueue->Remove();
 									server_locks[lock_index].machineID = waiting_client->machineID;
 									server_locks[lock_index].mailbox = waiting_client->mailbox;
+									cout<<"Machine "<<server_locks[lock_index].machineID<<" got the lock "<< server_locks[lock_index].name<<endl;
 									server_locks[lock_index].usage_counter--;			
+								}
+								else{
+									server_locks[lock_index].machineID = -1;
+									server_locks[lock_index].mailbox = -1;
+									server_locks[lock_index].usage_counter=0;
+									server_locks[lock_index].state = 1;
 								}
 						}
 					}	
