@@ -111,6 +111,11 @@ struct WaitingClient{
 	int mailbox;
 };
 
+struct ServerRequest{
+	
+
+}
+
 extern MV MVs[100];
 extern int mv_index;
 extern ServerLock server_locks[100];
