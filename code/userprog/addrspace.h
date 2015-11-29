@@ -14,11 +14,10 @@
 #define ADDRSPACE_H
 
 #include "copyright.h"
-#include "filesys.h"
+//#include "filesys.h"
 #include "table.h"
 
-#define UserStackSize		1024 	// increase this as necessary!
-
+#define UserStackSize	1024 
 #define MaxOpenFiles 256
 #define MaxChildSpaces 256
 
@@ -35,13 +34,28 @@ class AddrSpace {
     void SaveState();			// Save/restore address space-specific
     void RestoreState();		// info on a context switch
     Table fileTable;			// Table of openfiles
+    
+    Table *threadTable;
+    Lock *threadLock;       // Lock for actions on current thread
+    
+    Lock *kernThreadLock;
 
 	unsigned int getNumPages();
+    int getProcessID();
+    
+    void removePage(int i);
+
+		
  private:
-    TranslationEntry *pageTable;	// Assume linear page table translation
+ 	TranslationEntry *pageTable;
+    	// Assume linear page table translation
 					// for now!
     unsigned int numPages;		// Number of pages in the virtual 
 					// address space
+	
+	int processID;  
+	int numPagesReserved;
+	bool isMai;
 };
 
 #endif // ADDRSPACE_H

@@ -14,12 +14,16 @@ class Table {
     void **table;
     Lock *lock;
     int size;
+    int maxSize;
  public:
     Table(int);
     ~Table();
     void *Get(int);
     int Put(void *);
     void *Remove(int);
+    
+    int Size() { return size; }
+    int MaxSize(){return maxSize;}
 };
 
 

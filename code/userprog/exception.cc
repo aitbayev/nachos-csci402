@@ -1216,6 +1216,62 @@ int GetMV_Syscall(int index){
     return value;
 }
 
+void exec_thread(int vAddr) {
+  currentThread->space->InitRegisters();
+  currentThread->space->RestoreState();
+  machine->Run();
+}
+
+int Exec_Syscall(unsigned int addr, int len){
+
+	//From (copied) OpenFile- open file
+	char *buf = new char[len+1]; 
+  	OpenFile *f;                  
+  	int fileID;                       
+  
+  // Error checking
+	if (!buf) {
+    	printf("%s","Can't allocate kernel buffer in Exec\n");
+    	return -1;
+  	}
+    if( copyin(addr,len,buf) == -1 ) {
+    	printf("%s","Bad pointer passed to Exec\n");
+    	delete[] buf;
+    	return -1;
+  	}
+
+  	buf[len]='\0';
+
+  	f = fileSystem->Open(buf);
+	
+	//check error, return -1
+  	if(!f) {
+    	printf("Error opening file at %s\n", buf);
+    	return -1;
+  	}
+  
+  
+  	AddrSpace* processSpace = new AddrSpace(f); 
+  	processTableLock->Acquire();
+    int pID = processTable->Put(processSpace);
+  	processTableLock->Release();
+  
+  	delete f;
+
+  	Thread* newThread = new Thread(buf);
+  	newThread->space = processSpace;
+  	int threadNum = processSpace->threadTable->Put(newThread);       // add first new thread to thread table
+  	newThread->setThreadNum(threadNum);
+  	newThread->setProcessID(pID);
+  	newThread->Fork((VoidFunctionPtr)exec_thread, addr);
+  	
+  	newThread->mailboxNum = mailboxCounter;
+  	printf(newThread->mailboxNum + "\n");
+  	mailboxCounter++;
+  
+  	return pID;
+}
+
 void ExceptionHandler(ExceptionType which) {
     int type = machine->ReadRegister(2); // Which syscall?
     int rv=0; 	// the return value from a syscall
@@ -1229,6 +1285,11 @@ void ExceptionHandler(ExceptionType which) {
 		DEBUG('a', "Shutdown, initiated by user program.\n");
 		interrupt->Halt();
 		break;
+		
+		case SC_Exec:
+ 		DEBUG('a', "Exec.\n");
+ 		rv=Exec_Syscall(machine->ReadRegister(4), machine->ReadRegister(5));
+ 		break;
 		
 	    case SC_Create:
 		DEBUG('a', "Create syscall.\n");
@@ -1340,6 +1401,7 @@ void ExceptionHandler(ExceptionType which) {
  		DEBUG('a', "Get MV.\n");
  		rv=GetMV_Syscall(machine->ReadRegister(4));
  		break;
+ 		
 	}
 
 	// Put in the return value and increment the PC
