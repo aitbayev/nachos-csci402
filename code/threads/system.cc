@@ -7,7 +7,7 @@
 
 #include "copyright.h"
 #include "system.h"
-#include "addrspace.h"
+#include "../userprog/addrspace.h"
 
 // This defines *all* of the global data structures used by Nachos.
 // These are all initialized and de-allocated by this file.
@@ -32,6 +32,12 @@ SynchDisk   *synchDisk;
 #ifdef USER_PROGRAM	// requires either FILESYS or FILESYS_STUB
 Machine *machine;	// user program memory and registers
 
+Lock* processTableLock;
+Table* processTable;
+
+BitMap *pageMap;
+Lock *pageLock;
+
 int threadCounter = 0;
 int processCounter = 0;
 Lock *processLock;
@@ -48,6 +54,8 @@ int lockIndex = 0;
 
 int mv_index = 0;
 MV MVs[100]; 
+
+int mailboxCounter = 0;
 
 ServerLock server_locks[100];
 ServerLock server_lock;
@@ -181,6 +189,13 @@ Initialize(int argc, char **argv)
     
 #ifdef USER_PROGRAM
     machine = new Machine(debugUserProg);	// this must come first
+    
+    processTableLock = new Lock("Process Table Lock");
+    processTable = new Table(1000);
+    
+    pageMap = new BitMap(NumPhysPages);
+	pageLock = new Lock("Page Lock");
+    
 #endif
 
 #ifdef FILESYS

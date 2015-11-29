@@ -18,13 +18,8 @@
 #include "timer.h"
 #include "synch.h"
 
-
 class AddrSpace;
 using namespace std;
-
-
-
-
 
 
 // Initialization and cleanup routines
@@ -37,7 +32,6 @@ extern Lock *processLock;
 extern int threadCounter;
 extern int processCounter;
 
-
 extern Thread *currentThread;			// the thread holding the CPU
 extern Thread *threadToBeDestroyed;  		// the thread that just finished
 extern Scheduler *scheduler;			// the ready list
@@ -48,7 +42,13 @@ extern Timer *timer;				// the hardware alarm clock
 
 #ifdef USER_PROGRAM
 #include "machine.h"
+#include "openfile.h"
 
+extern Lock *processTableLock;
+extern Table *processTable;
+
+extern BitMap *pageMap;
+extern Lock *pageLock;
 
 extern Machine* machine;	// user program memory and registers
 
@@ -117,6 +117,8 @@ extern ServerLock server_locks[100];
 extern ServerCV server_cvs[100];
 extern int server_lock_counter;
 extern int server_cv_counter;
+
+extern int mailboxCounter;
 
 extern KernelCV conditions[];
 extern Lock *conditionsTableLock;

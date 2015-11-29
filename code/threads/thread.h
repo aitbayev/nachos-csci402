@@ -102,6 +102,13 @@ class Thread {
     char* getName() { return (name); }
     void Print() { printf("%s, ", name); }
 
+	int getThreadNum() { return threadNum; }
+    void setThreadNum(int num) { threadNum = num; }
+    int getProcessID() { return processId; }
+    void setProcessID(int pID) { processId = pID; }
+    
+    int mailboxNum;
+
   private:
     // some of the private data for this class is listed above
     
@@ -110,6 +117,9 @@ class Thread {
 					// (If NULL, don't deallocate stack)
     ThreadStatus status;		// ready, running or blocked
     char* name;
+    
+    int threadNum;
+    int processId;
 
     void StackAllocate(VoidFunctionPtr func, int arg);
     					// Allocate a stack for thread.
