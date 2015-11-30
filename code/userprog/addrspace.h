@@ -33,18 +33,15 @@ class AddrSpace {
 
     void SaveState();			// Save/restore address space-specific
     void RestoreState();		// info on a context switch
+    void removePage(int i);
+    
     Table fileTable;			// Table of openfiles
     
-    Table *threadTable;
-    Lock *threadLock;       // Lock for actions on current thread
-    
-    Lock *kernThreadLock;
+    Table *table_thread;    
+    Lock *kernelThread_Lock;
 
 	unsigned int getNumPages();
-    int getProcessID();
-    
-    void removePage(int i);
-
+    unsigned int getProcessID();
 		
  private:
  	TranslationEntry *pageTable;
@@ -53,9 +50,9 @@ class AddrSpace {
     unsigned int numPages;		// Number of pages in the virtual 
 					// address space
 	
+	int identify; //0 is no, 1 is yes
 	int processID;  
-	int numPagesReserved;
-	bool isMai;
+	int reservedPages;
 };
 
 #endif // ADDRSPACE_H

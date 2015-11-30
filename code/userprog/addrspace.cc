@@ -140,19 +140,14 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     // Don't allocate the input or output to disk files
     fileTable.Put(0);
     fileTable.Put(0);
-
-	//processName = "AddrSpace";
-	
-	//pExec = executable;
     
     // Initialize table of threads
-    threadTable = new Table(50);
+    table_thread = new Table(50);
     
-    kernThreadLock = new Lock("KernelThread Lock");
-    isMai = 0;
+    identify = 0;
+    kernelThread_Lock = new Lock("Kernel Lock- Thread");
     
-	//processID = processTable->Put(this);
-
+    
     executable->ReadAt((char *)&noffH, sizeof(noffH), 0);
     if ((noffH.noffMagic != NOFFMAGIC) && 
 		(WordToHost(noffH.noffMagic) == NOFFMAGIC))
@@ -160,52 +155,24 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
     ASSERT(noffH.noffMagic == NOFFMAGIC);
 
     size = noffH.code.size + noffH.initData.size + noffH.uninitData.size ;
-    numPages = divRoundUp(size, PageSize) + divRoundUp(UserStackSize*10,PageSize);
+    numPages = divRoundUp(size, PageSize) + divRoundUp(10 * UserStackSize, PageSize);
                                                 // we need to increase the size
 						// to leave room for the stack
-	//pagesInExec = divRoundUp(noffH.code.size + noffH.initData.size, PageSize);
 	size = numPages * PageSize;
-
-	DEBUG('u', "numPagesReserved: %i, numPages: %i, NumPhysPages: %i\n", numPagesReserved, numPages, NumPhysPages);
-	ASSERT((numPagesReserved + numPages) <= NumPhysPages);
-	DEBUG('u', "Initializing address space, num pages %d, size %d\n", numPages, size);
-    DEBUG('v', "Initializing address space, num pages %d, size %d\n", numPages, size);
-
-    //ASSERT(numPages <= NumPhysPages);		// check we're not trying
+	
+	//ASSERT((reservedPages + numPages) <= NumPhysPages); // check we're not trying
 						// to run anything too big --
 						// at least until we have
 						// virtual memory
 
-    //DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
-					//numPages, size);
-// first, set up the translation 
+    
     pageTable = new TranslationEntry[numPages];//IPT[numPages];
-    
-    /*pageLock->Acquire();
-    iptLock->Acquire();
-    
-    int iptOffset;
-    //TODO: Temporary fix for iptOffset, delete this later if it's found to not work on larger scale
-    for(i=0; i<NumPhysPages-1; i++) {
-      if(ipt[i].physicalPage == 0 && ipt[i+1].physicalPage == 0) {
-        iptOffset = i;
-        DEBUG('v', "AddrSpace cons (%i): iptOffset=%i; numPages=%i\n\n", processID, iptOffset, numPages);
-        break;
-      }
-    }
-    */
+
     for (i = 0; i < numPages; i++) {
     pageLock->Acquire();
 	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-	pageTable[i].physicalPage = pageMap->Find();//;
+	pageTable[i].physicalPage = pageMap->Find();
 	pageTable[i].valid = TRUE;
-	/*pageTable[i].processID = processID;
-      pageTable[i].location = noffH.code.inFileAddr + (i * PageSize);
-      if(i < pagesInExec) {
-        pageTable[i].pageLoc = PageInExec;
-      } else {
-        pageTable[i].pageLoc = PageInMem;
-      }*/
 	pageTable[i].use = FALSE;
 	pageTable[i].dirty = FALSE;
 	pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
@@ -213,17 +180,10 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 					// pages to be read-only
 										
 	pageLock->Release();
-	executable->ReadAt(&(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize, (noffH.code.inFileAddr + i*PageSize));
-								
-	numPagesReserved++;
- 
- 	DEBUG('a', "Page copied to pageTable at phys add: %d. Code/data of size %d copied from %d.\n", 
-	pageTable[i].physicalPage*PageSize, PageSize, (noffH.code.inFileAddr + i*PageSize));
+	executable->ReadAt(&(machine->mainMemory[pageTable[i].physicalPage*PageSize]), PageSize, (noffH.code.inFileAddr + i*PageSize));								
+	pageTable[i].physicalPage*(PageSize, PageSize, (noffH.code.inFileAddr + i*PageSize));
+	reservedPages++;
     }
-    
-    //iptOffset += numPages;
-    //pageLock->Release();
-    //iptLock->Release();
     
 // zero out the entire address space, to zero the unitialized data segment 
 // and the stack segment
@@ -255,7 +215,7 @@ AddrSpace::AddrSpace(OpenFile *executable) : fileTable(MaxOpenFiles) {
 AddrSpace::~AddrSpace()
 {
     delete pageTable;
-    delete threadTable;
+    delete table_thread;
 }
 
 //----------------------------------------------------------------------
@@ -286,7 +246,6 @@ AddrSpace::InitRegisters()
    // Set the stack register to the end of the address space, where we
    // allocated the stack; but subtract off a bit, to make sure we don't
    // accidentally reference off the end!
-   
     machine->WriteRegister(StackReg, numPages * PageSize - 16);
 }
 
@@ -304,7 +263,8 @@ unsigned int AddrSpace::getNumPages(){
 	return numPages;
 }
 
-int AddrSpace::getProcessID(){ 
+//return process ID number
+unsigned int AddrSpace::getProcessID(){ 
 	return processID; 
 }
 
