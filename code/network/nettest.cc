@@ -24,6 +24,7 @@
 #include "interrupt.h"
 #include "syscall.h"
 #include "../userprog/server.cc"
+#include "../userprog/servers.cc"
 
 
 // Test out message delivery, by doing the following:
@@ -115,4 +116,8 @@ void Lock_test(){
 
 void Server_test(){
 	server();
+}
+
+void Servers(int id, int num){
+	multiple_servers(id, num);
 }
