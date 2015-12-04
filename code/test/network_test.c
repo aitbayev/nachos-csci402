@@ -129,7 +129,6 @@ void DestroyLockInvalidArgument(){
 
 /*Successfully Acquire and Release*/
 void AcquireReleaseSuccessfull(){
-	lk1 = CreateLock("Lk1", sizeof("Lk1"));
 	Acquire(lk1);
 	Release(lk1);
 }
@@ -245,7 +244,7 @@ void BroadcastWrongLock(){
 
 int main(){	
 /********** MV *************/	
-
+/*
 CreateMVSuccessfull();	
 CreateMVSameName();
 CreateMVLongName();
@@ -261,12 +260,28 @@ SetMVDoesntExist();
 GetMVSuccessful();
 GetMVDoesntExist();
 GetMVWrongArgument();
-
+*/
 /******** MV TEST ENDS ********/	
 	
 /*************LOCK*****************/	
-CreateLockSuccessfull();
-CreateLockSameName();
+lk1 = CreateLock("lk1", sizeof("lk1"));
+cv1 = CreateCondition("cv1", sizeof("cv1"));
+Acquire(lk1);
+
+Write("Test 1:Acquired lk1 \n", sizeof("Test 1:Acquired lk1 \n"), ConsoleOutput);
+
+
+
+Wait(lk1, cv1);
+Write("Test 1:I was signalled lk1 \n", sizeof("Test 1:I was signalled lk1 \n"), ConsoleOutput);
+Signal(lk1, cv1);
+Write("Test 1:I signalled lk1 \n", sizeof("Test 1:I signalled lk1 \n"), ConsoleOutput);
+Release(lk1);
+
+Write("Test 1:Released lk1 \n", sizeof("Test 1:Released lk1 \n"), ConsoleOutput);
+
+
+/*CreateLockSameName();
 CreateLockLongName();
 
 DestroyLockSuccessfull();
@@ -285,7 +300,7 @@ AcquireDestroyRelease();
 
 	
 /*************CV*****************/	
-CreateCVSuccessfull();
+/*CreateCVSuccessfull();
 CreateCVSameName();
 CreateCVLongName();
 
@@ -301,7 +316,7 @@ SignalWrongLock();
 BroadcastSuccessfully();
 BroadcastBadArguments();
 BroadcastWrongLock();
-
+*/
 
 /******** CV TEST ENDS ********/	
 

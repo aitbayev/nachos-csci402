@@ -32,7 +32,6 @@ SynchDisk   *synchDisk;
 #ifdef USER_PROGRAM	// requires either FILESYS or FILESYS_STUB
 Machine *machine;	// user program memory and registers
 
-Lock* processTableLock;
 Table* processTable;
 
 BitMap *pageMap;
@@ -56,6 +55,8 @@ int mv_index = 0;
 MV MVs[100]; 
 
 int mailboxCounter = 0;
+
+Lock *mailboxLock;
 
 ServerLock server_locks[100];
 ServerLock server_lock;
@@ -123,6 +124,7 @@ Initialize(int argc, char **argv)
     locksTableLock = new Lock("LocksTableLock");
     conditionsTableLock = new Lock("ConditionsTableLock");
     processLock = new Lock("ProcessLock");
+    mailboxLock = new Lock("MailboxLock");
 #endif
 #ifdef FILESYS_NEEDED
     bool format = FALSE;	// format disk
@@ -190,8 +192,7 @@ Initialize(int argc, char **argv)
 #ifdef USER_PROGRAM
     machine = new Machine(debugUserProg);	// this must come first
     
-    processTableLock = new Lock("Process Table Lock");
-    processTable = new Table(1000);
+    processTable = new Table(500);
     
     pageMap = new BitMap(NumPhysPages);
 	pageLock = new Lock("Page Lock");
@@ -207,7 +208,7 @@ Initialize(int argc, char **argv)
 #endif
 
 #ifdef NETWORK
-    postOffice = new PostOffice(netname, rely, 10);
+    postOffice = new PostOffice(netname, rely, 30);
 #endif
 }
 

@@ -1,91 +1,2987 @@
-﻿WRITEUP Template
-Title:  Writeup for Project 1, Fall 2015
-Date:  09/21/15
-Group:        Name                         Email        
-                Hyun Ji Lee                 hyunjile@usc.edu        
-                Meruyert Aitbayeva         aitbayev@usc.edu
+﻿WRITEUP
+Title:  Writeup for Project 4, Fall 2015
+Date:  11/29/15
+Group:	Name			 Email	
+		Hyun Ji Lee		 hyunjile@usc.edu	
+		Meruyert Aitbayeva	 aitbayev@usc.edu
 
 
-I. Requirements:
-- Describe what's your understanding of the requirements from the assignment statement. With the requirement analysis, you would be clear about what you are supposed to do.
+I. Requirement:
 
-Part I. 
-Requirement for part I is to complete the thread system that was provided. We were told to define data and implement Lock and Condition classes (semaphore is given). Lock class must insure a mutual exclusion, in other words only thread that owns a lock can enter critical section. Anything that violates mutual exclusion should be accounted for. The implementation must enforce the rule of ownership- only the thread that acquires a particular lock can release it. The requirement for condition variables was to implement the synchronization using locks. Condition variables ensure that threads wait on lock until a certain condition becomes true, and other thread signals it.
+Part I:
+We are told to implement all entities from project 2 Passport Office Simulation. They must all work together across Nachos clients where the server connects the entities together. The User programs must not know that remote procedure calls are used. The clients do not directly talk to each other- instead, they send messages via Nachos server, which connects the clients and the user programs. Exec system call need to be used to create each entity. Fork must not be used. Use project 3 part 3 in simulation. The end result should allow up to 10 user programs to run simultaneously. Mailbox numbers need to be assigned to each thread when they get created (mailbox number is no longer hard-coded).
 
-
-Part II. 
-Requirements for the second part is to create a simulation of passport post office that would demonstrate our ability to use and control threads and their interactions. The post office needs to have different types of “people” interacting with each other. Each person is a thread. Customer should be able to walk into the passport office and visit each clerk in given order (picture and application clerks first, passport clerk then cashier), get the passport and leave at the end. Every time a customer goes to a clerk, he/she passes on his/her social security number for identification. There must be two lines- regular line and bribe line. Each customer has a certain amount of money assigned randomly. Each clerk charges $500 for bribing and keeps track of money they receive from customers/senators. The money is paid upfront- they are charged even if they need to go to the back of the line for some reason. If a customer goes on a bribe line, he/she becomes the priority over others on the regular line. Each clerk type has 1-5 members (ex. there may be 3 picture clerks, 2 application clerks, 5 passport clerks, and 1 cashier). A customer chooses the shortest line among same type of clerks. When a customer goes to the picture clerk to get picture taken, he/she has a percentage of disliking the picture. If the customer likes the picture, he/she proceeds. But if the customer dislikes the picture, he/she needs to go to the back of a picture clerk’s line for a retake. A customer must visit both application and picture clerks and get application verified and picture taken/filed before moving on to passport clerk. Then passport clerk checks whether the previous statement is fulfilled. If not, the customer is punished and is put on yield/delay between 100-1000 then forced to go back in a passport clerk line. If the statement is verified, the clerk records it. All recording/verifying/filing processes by all clerks are delayed (between 20-100 yield). The customer goes to a cashier after. The cashier charges customer $100 for the passport. The cashier verifies whether the passport clerk recorded and verified. If it is not done yet, the customer is punished and is put on yield/delay between 100-1000 then forced to go back in a cashier line. The customer’s $100 is stored (meaning, the customer does not need to pay $100 again). If verified, the cashier records it, gives the passport to the customer and the customer is good to leave. There is another type of customer. Senator needs to be implemented. When a senator comes, all customers must remember their place in line and state and wait outside after the customers who are currently at the registers finish interacting with the clerks. Senator then goes through each clerk (same process) and pay the cashier $100 at the end. Once the senator leaves, all customers return to where they left off and resume. The new customers who come while senator takes care of his/her business need to wait outside in a separate queue. When there is no one in a line and if the clerk is not interacting with anyone, the clerk goes to sleep. There is a single manager that wakes up a clerk of a particular type if more than 3 customers are waiting in line. Manager must also be informed about the total amount collected by each type of clerks and the overall total and print them out regularly. We are required to display outputs following the output guide. There can be 20-50 customers and up to 10 senators.
-
-
-We are required to comment our codes.
-
+Part II:
+In part II we need to change server so that, there can be multiple servers communicating with each other. Each server will have its own set of locks, cvs, and mvs. Client randomly chooses the server and sends a request. If server can’t create or can’t get the value(because it is not in its table) it should send request to another server asking to do it for him. If another server can make it, it performs the request and replies to original client that asked for it. If it can’t it should notify the server that he can’t make it. 
 
 II. Assumptions:
-- Reasonable assumptions you take for your scheme. 
 
+Part I:
+There is 1 server (just like project 3 part 3- make use of part 3 from the project). Fork cannot be used. Exec should be used. Mailbox number can be incremented (counter used) to assign to each thread that is being created. Messages are sent to the server. Error message is sent back to the client. Max MV number can be decided by us.
 
-Part I. 
-For condition variable, we assumed that a condition variable is always used with the same lock. We assumed to make use of lock doing condition variable.
-
-
-Part II.
-The assumption was that the customer can randomly decide which clerk to go to first (picture clerk or application clerk). If the customer has more than $100, we assumed that he/she will bribe the clerk he/she needs to interact with at the moment. If the clerk does not have anyone in his/her line and is not interacting with someone, customer goes straight to the register instead of getting in a line. This is the case for the customers who is able to bribe as well. They will not bribe and go straight to the register. Once a customer goes in line, he/she commits to the line- meaning he/she does not decide to go in a different line. We were first told that cashier does not get bribed. So we assumed that cashier does not get bribed. Our assumption is that once all clerks sleep, have customers line up in clerk 0’s line. If all clerks are sleeping and at least one person is waiting in line on line 0, the manager needs to wake Clerk 0 up.
+Part II:
+Server asks other server to create lock, mv or cv when it’s array gets full
 
 III. Design:
-- This section is to cover your logic and ideas as to how  you are going to solve the problem presented. This should include a description of classes, algorithms, etc. This is not code. You must document ALL parts of a project.
 
+Part I:
+Organized all locks, MVs, and CVs (for each clerk/cashier) in setup.h file. They are declared and initialized in the file. The index number per lock, MV, and CV is initialized. We broke down each type of entity into different files. Each clerk/customer file has a function where the clerk/customer gets customer. We check the bribe line first and then the regular line for customers. A lock is acquired and released in the process where we set the clerk state and signal. Then the clerk acquires a lock that is commonly used with a customer to interact. The interaction slightly differs depending on what the interaction between the customers and clerks are (i.e. what clerk requires from customer). We make use of Lock (acquire, release), CV, Signal, Wait, and Release (system calls). We get MV, set MV, then call the function in each clerk/cashier file. Now these clerk/cashier files are used to call Exec on these entities. We call Exec on the file and the length of the file to create the entity. Customer file calls functions to go to each clerk. It calls Exec of the clerks to go to. We have three test cases. That is where we call Exec on customers. As we use the server to send in messages, we also set mailbox number to the new thread that is being created but keeping track of a counter that increments every time we have a new thread. A thread gets an unique mailbox number.
 
-Part I.
-For the Lock Class, along with the provided private variable name, we need a List of waiting threads to keep threads in order, Lock status - to know the current status of Lock (free or busy), and a pointer to current Lock owner.
-The Lock class is to have two methods: Release and Acquire. Acquire method tries to acquire a lock for a thread that requested it. If the thread that requesting a lock is a lock owner we don’t proceed. If the lock is available, we make the current thread a lock owner, but if the lock is unavailable we put the thread to wait list and put it to sleep. Release method, checks if the thread that trying to release is a lock owner, otherwise returns from function. If the waiting queue is not empty, we remove one thread and make it a Lock owner, otherwise we set the state of lock back to available.
-        For the Condition class we need to have a queue of waiting threads and a pointer to lock that we wait on. Condition variables have Wait, Signal and Broadcast functions. We pass a  lock that we waiting on, or signalling on. Wait method checks if the passed Lock is not null, if it is we return, it also checks if there is anyone waiting(by checking if waiting lock is null), if there is no one waiting, waiting lock is set to passed condition lock, a thread added to wait queue. Condition lock gets released, current thread goes to to sleep and condition lock get acquired again. However if the waiting lock and passed lock are not equal it’s an error, and we return. Signal method again checks if there is anyone waiting, if there is not, return. It also checks if the waiting lock is not equal to condition lock, if it’s not, return. 
-
-
-Part II.
-        We decided to construct structs per type of “people”. We have Customer, Manager, Picture Clerk, Application Clerk, Passport Clerk, and Cashier structs with constructors (for initialization). The structs include variables such as name, social security number, and money. Clerks include their state(busy, available, on break) that is stored in an enum, bribe(whether he/she was bribed) and line count. Picture clerk has pic boolean (whether picture was approved by the customer). Manager struct keeps track of each clerk’s money. We also created CustomerData struct that stores customer information. Each clerk can fetch customer information using the struct and also keep the customer’s record/file (whether application was verified, picture was taken, etc.). It includes customer name, social security number, and records from each clerk. The Customer struct constructor determines the random liking number for picture taking and money the customer begins with (100, 600, 1100, or 1600). The struct also keeps track of the customer’s state- where he/she is, and whether he/she is punished by a passport clerk or cashier.
-        We have vector of CustomerData structs and vector of customers. We also have vectors of each clerk type (ex. vector of application clerks). Each clerk also has three vectors of locks and three vector of condition variables. I will explain them in a moment. Because there is a single manager, there is a manager struct declared (no vector).
-        Each clerk has two functions- one for customer and the other for the clerk. Clerk functions run on while(true) loop to continuously check. It first Each customer function for each clerk starts with acquiring pick line lock. The function checks how much money the customer has. If it has greater than $100, the customer goes through each clerk and checks for the shortest bribe line. Else (has $100), the customer goes through each line and checks for the shortest regular line. The shortest line becomes “customer’s” line. Clerk signals the customer function that takes the lock and stores the social security number in the clerk’s struct. Then the customer signals back and waits. If the clerk is picture or application clerk, he/she iterates through CustomerData vector to see if the customer exists. If not, the clerk adds the customer to the vector. Then clerk(any clerk) finds the customer in CustomerData, yields for a random number between 20 and 100, records and sets the state of the customer both in CustomerData and customer structs. It collects bribe money $500 from the customer if the customer bribed. Cashier collects $100. It signals the customer after done yielding and releases the lock. We have three locks. One for picking which line to go to (customer). One for being in line until signalled by the clerk to come to the register. One for interaction with the clerk. 
-        We use recursion (calling the current function again) to have customers go back to line when he/she wants to retake the picture or passport clerk/cashier wants to punish him/her. Because recursion may make us resume the rest of the function multiple times, we keep a counter that increments every time new recursion is called and decrements every time the recursion is retrieved We move on only when the counter is back to 0. We also make sure that the customer moves on after he/she visited both app and pic clerks. We check by seeing which clerk he/she first went to.
-        We randomly assigned a picture liking number. When a customer goes to the picture clerk to take a picture, we randomize a number between 1-100. If the generated random number is less than or equal to the assigned number, the customer likes the picture. If it is greater than the number, the customer dislikes the picture.
-        In Problem2 function, we create threads and create people- clerks, customers, etc. We name each lock and condition variable for debugging purpose. We fork the threads.
-
-
-*we weren’t able to implement manager and senator completely. We commented the ones we did out.
-
-
-If we were to implement them fully:
-        Manager currently has its own struct. It keeps track of the money. The implementation done in commented manager function adds up the total money each clerk received and also the total money received. We iterate through each clerk’s struct and add up the money value. It needs to report continuously so we added yield to get it to output multiple times. It is also in a while loop. It terminates after checking that all customer completed transaction with cashier. We would have created a new condition variable per clerk. If no one is in line and if no one is interacting with the clerk at the register, the clerk will call wait on this new condition variable. The manager goes through each clerk’s line and see if there are more than 3 people waiting in line. If so, he signals back to one of the waiting clerks. If all clerks are on break, we make customers all line up in clerk 0. If all clerk is sleeping and there is at least one person waiting in line in clerk 0, the manager wakes up clerk 0.
-        Customer class is to have “senator” boolean which is true when customer is a senator. There is also a senator counter which increments every time senator walks in the Passport office, and decrements when senator leaves. Each clerks has a CV for putting their customer to wait when senator comes. The clerks, in their while loops will constantly check if senator counter is greater than 0. If it is greater than 0, a clerk call wait on Senator CV passing a lock of the line. When senator leaves, in other words when senator counter is zero again clerk will wake all the customers, and they will go back to their lines.
-
-
-IV. Implementation:
-Part I. 
-+Files added: Wait queue, waitting lock, lock owner
-
-
-Part II
-
-
-* Structs: Customer, ApplicationClerk, PictureClerk, PassportClerk, Cashier, Manager
-* Functions:void goToAppClerkLine(int);
-void goToPicClerkLine(int);
-void goToPassClerkLine(int);
-void goToCashierLine(int);
-
-
-void appGetCustomer(int);
-void passGetCustomer(int);
-void picGetCustomer(int);
-void cashGetCustomer(int);
+Part II:
+There is struct called Pending Message, every time server sends messages to each other they store them in requests array. 
+Also every server has it’s own array of locks, cvs and mvs and only knows it’s own set locks, mvs and cvs.
+Now we differentiate the requests that server get as a Server request and Client request.
+When server gets new request it checks if it is from server or client and depending on that does the action.
+Before creating new lock, mv or cv server checks if its array is full and if it is it asks another server to do the job, also if server doesn’t have the lock, mv or cv in its table at asks another server to do it. 
 
 
 
+IV. Implementation
+
+Part I:
+New Files:
+	customer.c in ../test
+		Functions- use of system calls & checks (bribe/regular line, SSN, picture taken 
+etc.)
+		goToAppClerk(int arg);
+goToPicClerk(int arg);
+goToPassClerk(int arg);
+goToCashier(int arg);	
+	app_clerk.c in ../test
+Functions- use of system calls & checks		
+getCustomer(int index)
+	pic_clerk.c in ../test
+		Functions- use of system calls & checks		
+getCustomer(int index)
+	pass_clerk.c in ../test
+		Functions- use of system calls & checks		
+getCustomer(int index)
+	cashier.c in ../test
+		Functions- use of system calls & checks		
+getCustomer(int index)
+	passport0.c in ../test
+		//one customer- Exec
+		Testing purpose
+		nachos -m 1 -x ../test/passport0
+	passport.c in ../test
+		//four customers- Exec
+		Testing purpose
+		nachos -m 1 -x ../test/passport
+	passport1.c in../test
+		//ten customers- Exec
+		Testing purpose
+		nachos -m 1 -x ../test/passport1
+	setup.h in ../test
+		Structs- each entity	
+Customer
+CustomerData
+ApplicationClerk
+PictureClerk
+PassportClerk
+Cashier
+Manager
+//There are arrays, locks, CVs, and MVs declared and initialized
+		//Ten customers declared
+
+Part II:
+
+New Struct: 
+struct ServerRequest{   
+in system.h
+	char *message;
+	int mailbox;
+	int machine_id;
+	bool reply_yes;	
+};
+New File: 
+servers.cc in userprog
+servers.c in test
+New data structures:  in servers.c
+	ServerLock s_locks[10]; 
+ServerCV s_cvs[10];
+MV s_mvs[10];
+ServerRequest requests[]
+Modified files:
+	main.cc in threads
+	nettest.cc in network
+	exception.cc in userprog
+	
 
 
-V. Testing:  (For each test case, you must show)
-        + When you run nachos -P2 -rs 70, you will have a menu option be able to use a test case, if you choose option 8 you can enter your own numbers
-        + output will in the format: Customer[1] in a line for Clerk[1]
+V. Testing
 
-VI. Discussion:
-        + Experiment expectation.  Customers should visit each of the clerks, get their approval, get the passport and leave the office
-        + Experiment result. Senators and Managers are not fully working, but are partially implemented in the code.
+Part I:
+TO TEST… have two windows open- go to network directory (both of them)
+		run nachos -m 0 -server on one of the windows and...
+Passport0.c: run nachos -m 1 -x ../test/passport0 on the other window or
+Passport.c: run nachos -m 1 -x ../test/passport on the other window or
+Passport1.c: run nachos -m 1 -x ../test/passport1 on the other window
+
+//Makefile is already edited- three test cases are included
+***Test results at the end***
+
+Part II:
+Unfortunately, we didn’t have time to test part 2 with passport office. However, we created a test file servers.c  in test which shows that interaction between servers works. 
+To show that servers interact with each other Open 3 windows. Here we creating 2 server instances
+nachos -m 0 -ser 0 2
+nachos -m 1 -ser 1 2
+And test:
+nachos -m 2 -x ../test/servers
+
+The test shows that if one server fails to perform the request from client, another server handles it. 
+In our case Server randomly chooses client 0 or 1, depending on that, results of window 0 and window 1 will be switched. 
+
+We show the server interaction by testing it on Monitor variables. 
+Test result shows that MVs gets created even though the requested server couldn't create the MV, and another server does the job.
+In getMV test case we see that we can get values of MV created by different servers but requested from the same server.
+Test results are at end of documentation..
+
+
+Windows with machine id 0 
+Server request to create MV from machine1
+Creating new MV with name @
+Get Monitor variable.
+I don't have that MV, let's ask another server
+going to send request
+Chose server 1
+Cannot get MV, wrong argument.
+MV doesn't exist or wrong argument was passed.
+Get Monitor variable.
+
+Window with machine id 1
+Create Monitor variable.
+Creating new MV with name Monitor1
+Create Monitor variable.
+Creating new MV with name Monitor2
+Create Monitor variable.
+Creating new MV with name Monitor3
+Create Monitor variable.
+Creating new MV with name Monitor4
+Create Monitor variable.
+Creating new MV with name Monitor5
+Create Monitor variable.
+Cannot create MV, array is full, let other server create lock
+going to send request
+Chose server 0
+Got request from another server to return MV value
+Returning MV value 
+
+
+Test result
+Sending to 1
+Created MV at index 06??6? with name Monitor1 
+Sending to 1
+Created MV at index 1 with name Monitor2 
+Sending to 1
+Created MV at index 2 with name Monitor3 
+Sending to 1
+Created MV at index 3 with name Monitor4 
+Sending to 1
+Created MV at index 4 with name Monitor5 
+Sending to 1
+Created MV at index 0 with name Monitor6 
+created by SAME server 
+6
+created by SAME server 
+1
+created by SAME server 
+2
+created by SAME server 
+3
+created by SAME server 
+4
+created by DIFFERENT server 
+0
+In get MV
+Got value 0 of MV at index 6 
+In get MV
+Got value 0 of MV at index 0 
+should be 0 
+0
+should be 0 
+0
+
+
+
+
+VI. Discussion
+
+Experiment Expectation
+Part I: Passport Clerk works using a server where entities communicate to.
+
+Part II: Multiple  Servers supposed to communicate with each other and handle requests that clients sent by clients and other servers. 
+
+Experiment Result
+	Part I: Passport Clerk is able to be run using Exec and server.
+
+Part II: Servers communicate with each other and are able to handle requests sent by clients and other servers. 
+
+
+
+
+
+TEST RESULTS
+
+for passport0.c
+
+aludra.usc.edu(8): nachos -m 1 -x ../test/passport0
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+Created MV 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+Created MV 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+Created MV 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+Created MV 
+Created MV 
+Created MV 
+In get MV
+In get MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+Acquired a lock 
+-AppClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+0
+In Release lock
+Waiting on lock, CV 
+--Got ssn and app from customer 
+In Signal CV
+Released Lock 
+In Acquire Lock
+Signalling on lock, CV 
+In Wait CV
+Acquired a lock 
+--Got in regular line 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+In Acquire Lock
+Acquired a lock 
+-Client-Acquired Lock
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+In get MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Released Lock 
+In Acquire Lock
+Signalling on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+In get MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+Released Lock 
+In Acquire Lock
+Signalling on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+In get MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Released Lock 
+In Acquire Lock
+Signalling on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Released Lock 
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+
+
+
+
+
+
+for passport.c
+
+aludra.usc.edu(19): nachos -m 1 -x ../test/passport
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+Created MV 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+Created MV 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+Created MV 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+Created MV 
+Created MV 
+Created MV 
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+Acquired a lock 
+-AppClerk-Acquired Lock
+In Wait CV
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+Couldn't acquire a lock 
+-AppClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+0
+In Release lock
+Couldn't acquire a lock 
+0
+In Release lock
+Couldn't acquire a lock 
+0
+In Release lock
+Waiting on lock, CV 
+--Got ssn and app from customer 
+In Signal CV
+In Acquire Lock
+Waiting on lock, CV 
+--Got ssn and app from customer 
+In Signal CV
+Released Lock 
+In Acquire Lock
+Acquired a lock 
+0
+In Release lock
+Released Lock 
+In Acquire Lock
+Signalling on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Released Lock 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+In Acquire Lock
+In Acquire Lock
+Waiting on lock, CV 
+In Release lock
+In Acquire Lock
+Acquired a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+In Acquire Lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Released Lock 
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+Couldn't signal on lock, CV 
+In Release lock
+In get MV
+Released Lock 
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+In get MV
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+Couldn't acquire a lock 
+In Release lock
+In get MV
+Released Lock 
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+In get MV
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+In Acquire Lock
+Got value of MV 
+In set MV
+Couldn't get value of MV 
+In set MV
+Acquired a lock 
+In Release lock
+MV was set/created 
+In Acquire Lock
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+In Acquire Lock
+Couldn't acquire a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't wait on lock, CV 
+In Release lock
+Acquired a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Couldn't wait on lock, CV 
+--Picture is taken 
+In Signal CV
+Released Lock 
+In Acquire Lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+In Acquire Lock
+Acquired a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't signal on lock, CV 
+In Release lock
+Released Lock 
+In Acquire Lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Released Lock 
+In Acquire Lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+Waiting on lock, CV 
+In Release lock
+In get MV
+Waiting on lock, CV 
+In Release lock
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+In get MV
+Couldn't acquire a lock 
+In Release lock
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+In get MV
+Got value of MV 
+In set MV
+Acquired a lock 
+In Release lock
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+In get MV
+Got value of MV 
+In set MV
+In Acquire Lock
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+MV was set/created 
+In Acquire Lock
+In Acquire Lock
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+Couldn't acquire a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+In Acquire Lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+In Acquire Lock
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Acquired a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't signal on lock, CV 
+In Wait CV
+In Acquire Lock
+Signalling on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Couldn't signal on lock, CV 
+In Wait CV
+Released Lock 
+In Acquire Lock
+Waiting on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Released Lock 
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+Signalling on lock, CV 
+In Release lock
+In get MV
+Waiting on lock, CV 
+In Signal CV
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+In get MV
+Couldn't acquire a lock 
+In Release lock
+Released Lock 
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+Got value of MV 
+In set MV
+In get MV
+Signalling on lock, CV 
+In Release lock
+In Acquire Lock
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+Couldn't acquire a lock 
+In Release lock
+MV was set/created 
+In Acquire Lock
+Got value of MV 
+In set MV
+Released Lock 
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+In get MV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Released Lock 
+In Acquire Lock
+Wasn't able to set MV 
+In Acquire Lock
+In Acquire Lock
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+Acquired a lock 
+In Release lock
+Wasn't able to set MV 
+In Acquire Lock
+Got value of MV 
+In set MV
+Waiting on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Released Lock 
+In Acquire Lock
+Couldn't wait on lock, CV 
+In Signal CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+MV was set/created 
+In Acquire Lock
+In Acquire Lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Signalling on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+In Acquire Lock
+Signalling on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+In Acquire Lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Acquired a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't signal on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+In Acquire Lock
+Couldn't signal on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Released Lock 
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Release lock
+Released Lock 
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+Signalling on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+Signalling on lock, CV 
+In Release lock
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+
+
+
+
+
+
+for passport1.c
+
+aludra.usc.edu(9): nachos -m 1 -x ../test/passport1
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+Created MV 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+Created MV 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+Created MV 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+In Create Lock
+Lock was created 
+In create CV
+CV was created 
+In create CV
+CV was created 
+In Create Lock
+Lock was created 
+Created MV 
+Created MV 
+Created MV 
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+In get MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+MV was set/created 
+
+***Going to AppClerk***
+
+In Acquire Lock
+Acquired a lock 
+-AppClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+-AppClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+-AppClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+-AppClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+-AppClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+-AppClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+0
+In Release lock
+Couldn't acquire a lock 
+0
+In Release lock
+Couldn't acquire a lock 
+0
+In Release lock
+Couldn't acquire a lock 
+0
+In Release lock
+Couldn't acquire a lock 
+0
+In Release lock
+Couldn't acquire a lock 
+0
+In Release lock
+Couldn't acquire a lock 
+0
+In Release lock
+Couldn't acquire a lock 
+0
+In Release lock
+Couldn't acquire a lock 
+0
+In Release lock
+Couldn't acquire a lock 
+0
+In Release lock
+Waiting on lock, CV 
+--Got ssn and app from customer 
+In Signal CV
+Waiting on lock, CV 
+--Got ssn and app from customer 
+In Signal CV
+Waiting on lock, CV 
+--Got ssn and app from customer 
+In Signal CV
+Waiting on lock, CV 
+--Got ssn and app from customer 
+In Signal CV
+Waiting on lock, CV 
+--Got ssn and app from customer 
+In Signal CV
+Waiting on lock, CV 
+--Got ssn and app from customer 
+In Signal CV
+Released Lock 
+In Acquire Lock
+In Acquire Lock
+Released Lock 
+In Acquire Lock
+In Acquire Lock
+In Acquire Lock
+In Acquire Lock
+In Acquire Lock
+In Acquire Lock
+In Acquire Lock
+In Acquire Lock
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+In Acquire Lock
+In Acquire Lock
+In Acquire Lock
+Released Lock 
+In Acquire Lock
+Released Lock 
+In Acquire Lock
+Released Lock 
+In Acquire Lock
+Released Lock 
+In Acquire Lock
+Released Lock 
+In Acquire Lock
+Released Lock 
+In Acquire Lock
+Released Lock 
+In Acquire Lock
+Acquired a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+In get MV
+In get MV
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+In get MV
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+In get MV
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+In get MV
+In get MV
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+In get MV
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+Couldn't acquire a lock 
+In Release lock
+In get MV
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+Couldn't acquire a lock 
+In Release lock
+In get MV
+
+***Leaving AppClerk***
+
+***Going to PicClerk***
+
+In Acquire Lock
+In get MV
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+In Acquire Lock
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+Couldn't get value of MV 
+In set MV
+Released Lock 
+In Acquire Lock
+Wasn't able to set MV 
+In Acquire Lock
+Got value of MV 
+In set MV
+Acquired a lock 
+In Release lock
+MV was set/created 
+In Acquire Lock
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+In Acquire Lock
+Released Lock 
+In Acquire Lock
+Wasn't able to set MV 
+In Acquire Lock
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+In Acquire Lock
+Released Lock 
+In Acquire Lock
+Wasn't able to set MV 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+MV was set/created 
+In Acquire Lock
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Wasn't able to set MV 
+In Acquire Lock
+Acquired a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+In Acquire Lock
+Couldn't acquire a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't wait on lock, CV 
+In Release lock
+Acquired a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't wait on lock, CV 
+In Release lock
+Acquired a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+0
+-PicClerk-Acquired Lock
+In Wait CV
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+In Acquire Lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+In Acquire Lock
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Waiting on lock, CV 
+--Picture is taken 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Released Lock 
+In Acquire Lock
+Couldn't signal on lock, CV 
+In Release lock
+In Acquire Lock
+In Acquire Lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+In Acquire Lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+In Acquire Lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+In Acquire Lock
+Signalling on lock, CV 
+In Release lock
+In Acquire Lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+In Acquire Lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't signal on lock, CV 
+In Wait CV
+Acquired a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't signal on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Released Lock 
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+Waiting on lock, CV 
+In Release lock
+In get MV
+Waiting on lock, CV 
+In Release lock
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+In get MV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+In get MV
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+In get MV
+In get MV
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+In get MV
+Couldn't acquire a lock 
+In Release lock
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+Got value of MV 
+In set MV
+In get MV
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+In get MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+In get MV
+
+***Leaving PicClerk***
+
+***Going to PassClerk***
+
+In Acquire Lock
+In get MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Released Lock 
+In Acquire Lock
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Released Lock 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+Released Lock 
+In Acquire Lock
+Couldn't get value of MV 
+In set MV
+MV was set/created 
+In Acquire Lock
+In Acquire Lock
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+In Acquire Lock
+Couldn't acquire a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+MV was set/created 
+In Acquire Lock
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Acquired a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+Wasn't able to set MV 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Acquired a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+Couldn't wait on lock, CV 
+In Release lock
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't wait on lock, CV 
+In Release lock
+Acquired a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+Couldn't acquire a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+Couldn't acquire a lock 
+-PassClerk-Acquired Lock
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+In Acquire Lock
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+In Acquire Lock
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+In Acquire Lock
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+--Got ssn and app from customer- verified 
+In Signal CV
+In Acquire Lock
+Couldn't signal on lock, CV 
+In Wait CV
+In Acquire Lock
+Released Lock 
+In Acquire Lock
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+In Acquire Lock
+Signalling on lock, CV 
+In Wait CV
+In Acquire Lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+In Acquire Lock
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Released Lock 
+In Acquire Lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Released Lock 
+Couldn't signal on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Couldn't wait on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Released Lock 
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Released Lock 
+Signalling on lock, CV 
+In Wait CV
+Couldn't signal on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Couldn't signal on lock, CV 
+In Wait CV
+Released Lock 
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+In get MV
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+In get MV
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+In get MV
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+In get MV
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+In get MV
+In get MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+In get MV
+In get MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+
+***Leaving PassClerk***
+
+***Going to Cashier***
+
+In Acquire Lock
+In get MV
+In get MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Couldn't acquire a lock 
+In Release lock
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+In Release lock
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+In Release lock
+Couldn't acquire a lock 
+In Release lock
+Got value of MV 
+In set MV
+Got value of MV 
+In set MV
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Wasn't able to set MV 
+In Acquire Lock
+Released Lock 
+In Acquire Lock
+In Acquire Lock
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+In Acquire Lock
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+In Acquire Lock
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+MV was set/created 
+In Acquire Lock
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+--Got in regular line 
+In Wait CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+Couldn't acquire a lock 
+-Cashier-Acquired Lock
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+In Acquire Lock
+Signalling on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Couldn't signal on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+Released Lock 
+In Acquire Lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+In Acquire Lock
+Signalling on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+In Acquire Lock
+In Acquire Lock
+Signalling on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+In Acquire Lock
+Signalling on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+Signalling on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+In Acquire Lock
+Couldn't signal on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+Released Lock 
+In Acquire Lock
+Signalling on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+Waiting on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+In Acquire Lock
+Couldn't signal on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+Signalling on lock, CV 
+-Cashier-Received money from customer
+In Wait CV
+Acquired a lock 
+-Client-Acquired Lock
+In Signal CV
+In Acquire Lock
+Waiting on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't wait on lock, CV 
+In Release lock
+Acquired a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Released Lock 
+Couldn't signal on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Waiting on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Wait CV
+Couldn't acquire a lock 
+-Client-Acquired Lock
+In Signal CV
+Couldn't signal on lock, CV 
+In Wait CV
+Released Lock 
+Signalling on lock, CV 
+In Wait CV
+Signalling on lock, CV 
+In Wait CV
+Couldn't signal on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Released Lock 
+Signalling on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Wait CV
+Couldn't signal on lock, CV 
+In Wait CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Released Lock 
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Waiting on lock, CV 
+In Signal CV
+Waiting on lock, CV 
+In Signal CV
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+Signalling on lock, CV 
+In Release lock
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+Signalling on lock, CV 
+In Release lock
+Signalling on lock, CV 
+In Release lock
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+Released Lock 
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+
+***Leaving Cashier***
+
+----LEAVING PASSPORT OFFICE----
+
+
+
+
+
+
+Part II Test results
+
+Windows with machine id 0 
+Server request to create MV from machine1
+Creating new MV with name @
+Get Monitor variable.
+I don't have that MV, let's ask another server
+going to send request
+Chose server 1
+Cannot get MV, wrong argument.
+MV doesn't exist or wrong argument was passed.
+Get Monitor variable.
+
+Window with machine id 1
+Create Monitor variable.
+Creating new MV with name Monitor1
+Create Monitor variable.
+Creating new MV with name Monitor2
+Create Monitor variable.
+Creating new MV with name Monitor3
+Create Monitor variable.
+Creating new MV with name Monitor4
+Create Monitor variable.
+Creating new MV with name Monitor5
+Create Monitor variable.
+Cannot create MV, array is full, let other server create lock
+going to send request
+Chose server 0
+Got request from another server to return MV value
+Returning MV value 
+
+
+Test result
+Sending to 1
+Created MV at index 06??6? with name Monitor1 
+Sending to 1
+Created MV at index 1 with name Monitor2 
+Sending to 1
+Created MV at index 2 with name Monitor3 
+Sending to 1
+Created MV at index 3 with name Monitor4 
+Sending to 1
+Created MV at index 4 with name Monitor5 
+Sending to 1
+Created MV at index 0 with name Monitor6 
+created by SAME server 
+6
+created by SAME server 
+1
+created by SAME server 
+2
+created by SAME server 
+3
+created by SAME server 
+4
+created by DIFFERENT server 
+0
+In get MV
+Got value 0 of MV at index 6 
+In get MV
+Got value 0 of MV at index 0 
+should be 0 
+0
+should be 0 
+0
+
+

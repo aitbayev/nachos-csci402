@@ -61,7 +61,7 @@ using namespace std;
 extern void ThreadTest(void), Copy(char *unixFile, char *nachosFile);
 extern void Print(char *file), PerformanceTest(void);
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
-extern void MailTest(int networkID), MV_test(void), Server_test(void), Lock_test(void);
+extern void MailTest(int networkID), MV_test(void), Server_test(void), Lock_test(void), Servers(int id, int num);;
 
 //----------------------------------------------------------------------
 // main
@@ -166,6 +166,10 @@ extern void Problem2(int, int, int, int, int), TestSuite(void);
         }
         else if(!strcmp(*argv, "-server")){
         	Server_test();
+        }
+        else if(!strcmp(*argv, "-ser")){
+         	Delay(3); 	
+        	Servers(atoi(*(argv + 1)), atoi(*(argv + 2)));
         }
         
 #endif // NETWORK

@@ -34,7 +34,13 @@
 
 Thread::Thread(char* threadName)
 {
+	mailboxLock->Acquire();
+	mailboxNum = mailboxCounter;
+	cout<<"---Thread: mailboxCounter before counter: "<<mailboxCounter<<endl;
+  	mailboxCounter++;
+  	cout<<"---Thread: mailboxCounter: "<<mailboxCounter<<endl;
     name = threadName;
+    mailboxLock->Release();
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;

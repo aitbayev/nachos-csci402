@@ -10,7 +10,9 @@ MailHeader outMailHdr, inMailHdr;
 void sendReply(int result){
 	stringstream ss;
     ss<<result;
-    char *reply = (char *)ss.str().c_str();
+    char *reply = new char[40];
+    strcpy(reply,(char *)ss.str().c_str());
+    
 	bool success = postOffice->Send(outPktHdr, outMailHdr, reply);
     if (!success){
  		printf("The postOffice Send failed. You must not have the other Nachos running. Terminating Nachos.\n");
@@ -24,13 +26,17 @@ void server(){
 	
 		char buffer[10];
 			
-   		outMailHdr.to = 0;
-    	outMailHdr.from = 1;
+   		//outMailHdr.to = 0;
+    	//outMailHdr.from = 1;
     	outMailHdr.length = strlen(buffer) + 1;
 	
 		postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
 		outPktHdr.to = inPktHdr.from;	//to make sure that server will always reply to client that sent the message
-
+		outMailHdr.to = inMailHdr.from;//inMailHdr.from; //currentThread->mailboxNum
+		
+		//cout<<"from machine "<<inPktHdr.from<<endl;
+		//cout<<"from mailbox "<<inMailHdr.from<<endl;
+		
 		char *request = strtok(buffer, " "); //splitting requesting 
 		char *requestType; //first string
 		char *name; //what comes after request type name or index
@@ -56,15 +62,19 @@ void server(){
 		bool found = false;
 		
 //CREATE MV	
-		if (strcmp (requestType,"CM") == 0){
+		if (strcmp (requestType,"CCM") == 0){
 			cout<<"Create Monitor variable."<<endl;
 			error = false;
 			found = false;	
+			int foundIndex;
 			//check if MV with the same name exist
 			for (int i=0; i<mv_index; i++){
 				if (strcmp (name, MVs[i].name) == 0){
-					cout<<"Monitor variable with name "<<name<<" already exists. Cannot create MV."<<endl;
+					cout<<"Monitor variable with name "<<name<<" already exists. Retrieving MV."<<endl;
 					found = true;
+					foundIndex = i;
+					//cout<<"***MV foundIndex: "<<foundIndex<<" my name is "<<name<<" compared to "<<MVs[i].name<<endl;
+
 				}
 			}
 			//check if array is full
@@ -73,16 +83,23 @@ void server(){
 				error = true;
 			}
 			//if name is ok and array not full create new MV
-			if (error == false && found == false){
-				cout<<"Creating new MV."<<endl;
-				MVs[mv_index].name = new char[30];
-  				sprintf(MVs[mv_index].name, "%s", name);
- 				MVs[mv_index].ID = mv_index;
- 				MVs[mv_index].value = 0;	
+			if (error == false){
+				if(found == false){
+					cout<<"Creating new MV."<<endl;
+					MVs[mv_index].name = new char[30];
+  					sprintf(MVs[mv_index].name, "%s", name);
+ 					MVs[mv_index].ID = mv_index;
+ 					MVs[mv_index].value = 0;	
  				
-				sendReply(mv_index); //send reply with index to client
+					sendReply(mv_index); //send reply with index to client
+					//cout<<"***MV Counter before increment: "<<mv_index<<endl;
+ 					mv_index++;		//increment MV counter
+ 					//cout<<"***MV Counter after increment: "<<mv_index<<endl;
 
- 				mv_index++;		//increment MV counter
+ 				}
+ 				else{
+ 					sendReply(foundIndex);
+ 				}
 			}
 			else{
 			//else if name not ok or array is full send -1 to client
@@ -121,12 +138,13 @@ void server(){
 			}
 		}
 //SET MV			
-		else if (strcmp (requestType,"SM") == 0){
+		else if (strcmp (requestType,"CSM") == 0){
 			cout<<"Set Monitor variable."<<endl;
 			int val = atoi(value);
 			int index = atoi(name);
 			error = false;
 			found = false;
+			cout<<"Set Monitor variable "<<MVs[index].name <<" to value "<<val<<endl;
 			//check if MV exist
 			for (int i=0; i<mv_index; i++){
 				if (index == MVs[i].ID){
@@ -150,7 +168,7 @@ void server(){
 			}
 		}
 //GET MV		
-			else if (strcmp (requestType,"GM") == 0){
+			else if (strcmp (requestType,"CGM") == 0){
 			cout<<"Get Monitor variable."<<endl;
 			
 			int index = atoi(name);
@@ -182,11 +200,15 @@ void server(){
 			cout<<"Create Lock."<<endl;
 			found = false;
 			error = false;
+			int foundIndex;
 			//check if name with this name already exist
 			for (int i=0; i<server_lock_counter; i++){
 				if (strcmp (name, server_locks[i].name) == 0){
-					cout<<"Lock with this name already exists. Cannot create lock."<<endl;
+					cout<<"Lock with this name already exists. Retrieving lock."<<endl;
 					found = true;
+					foundIndex = i;
+					//cout<<"***Lock foundIndex: "<<foundIndex<<" my name is "<<name<<" compared to "<<server_locks[i].name<<endl;
+
 				}
 			}
 			//check if array is full
@@ -195,20 +217,29 @@ void server(){
 				error = true;
 			}
 			//if ok create lock
-			if (found == false && error == false){
-				cout<<"Creating lock with name "<<name<<" at index "<<server_lock_counter<<endl;
-				server_locks[server_lock_counter].name = new char[30];
-  				sprintf(server_locks[server_lock_counter].name, "%s", name);				
-				server_locks[server_lock_counter].state = 1; //available
-				server_locks[server_lock_counter].isToBeDeleted = false;
-				server_locks[server_lock_counter].machineID = -1;
-				server_locks[server_lock_counter].mailbox = -1;
-				server_locks[server_lock_counter].usage_counter = 0;
-				server_locks[server_lock_counter].lockWaitQueue = new List();	
-				server_locks[server_lock_counter].id = server_lock_counter;
-				server_locks[server_lock_counter].deleted = false;
-     			sendReply(server_lock_counter);	
-     			server_lock_counter++;
+			if (error == false){
+				if(found == false){
+					cout<<"Creating lock with name "<<name<<" at index "<<server_lock_counter<<endl;
+					server_locks[server_lock_counter].name = new char[30];
+  					sprintf(server_locks[server_lock_counter].name, "%s", name);				
+					server_locks[server_lock_counter].state = 1; //available
+					server_locks[server_lock_counter].isToBeDeleted = false;
+					server_locks[server_lock_counter].machineID = -1;
+					server_locks[server_lock_counter].mailbox = -1;
+					server_locks[server_lock_counter].usage_counter = 0;
+					server_locks[server_lock_counter].lockWaitQueue = new List();	
+					server_locks[server_lock_counter].id = server_lock_counter;
+					server_locks[server_lock_counter].deleted = false;
+					
+     				sendReply(server_lock_counter);	
+     				//cout<<"***Lock Counter before increment: "<<server_lock_counter<<endl;
+     				server_lock_counter++;
+     				//cout<<"***Lock Counter after increment: "<<server_lock_counter<<endl;
+     			}
+     			else{
+     				
+     				sendReply(foundIndex);
+     			}
 			}
 			//else send -1 to client
 			else{
@@ -273,7 +304,7 @@ void server(){
 				}
 				//check if the client already owns a lock 
 				if (server_locks[index].machineID == inPktHdr.from && server_locks[index].mailbox == inMailHdr.from){
-					cout<<"Machine "<<server_locks[index].machineID <<" already owns the lock "<<server_locks[index].name<<endl;
+					cout<<"Machine " <<server_locks[index].machineID <<" already owns the lock " <<server_locks[index].name<<endl;
 					sendReply(-1);	
 				}
 				else{
@@ -282,7 +313,7 @@ void server(){
 						server_locks[index].usage_counter++;
 						//if lock is available then acquire
 						if (server_locks[index].state == 1){
-							cout<<"Machine id "<<inPktHdr.from<<" got the lock "<< server_locks[index].name<<endl; 
+							cout<<"Mailbox "<<inMailHdr.from<<" got the lock "<< server_locks[index].name<<endl; 
 							server_locks[index].state = 0;
 							server_locks[index].machineID = inPktHdr.from;
 							server_locks[index].mailbox = inMailHdr.from;
@@ -291,12 +322,13 @@ void server(){
 						//if lock is busy add client to waitqueue
 						else{
 							cout<<"The lock is busy"<<endl;
+							cout<<"Mailbox "<<inMailHdr.from<<" is going to sleep"<<endl;
 							server_locks[index].state = 0;
 							WaitingClient *waiting_client = new WaitingClient;
 							waiting_client->machineID = inPktHdr.from;
 							waiting_client->mailbox = inMailHdr.from;
 							server_locks[index].lockWaitQueue->Append((void*)waiting_client);
-							sendReply(-1);
+							//sendReply(-2);
 						}
 					}
 					else{
@@ -327,6 +359,8 @@ void server(){
 				if (found == true && error == false){
 					//if thread is not lock owner send -1
 					if (server_locks[index].machineID != inPktHdr.from || server_locks[index].mailbox != inMailHdr.from){
+						cout<<"Mailbox in list "<<server_locks[index].mailbox <<endl;
+						cout<<"Mailbox that sent "<<inMailHdr.from<<endl;
 						cout<<"The thread is not a lock owner "<<index<<endl;
 						sendReply(-1);
 					}
@@ -356,8 +390,14 @@ void server(){
 									server_locks[index].machineID = client->machineID;
 									server_locks[index].mailbox = client->mailbox;
 									server_locks[index].state = 0; //not available
-									cout<<"Released. Client "<< client->machineID<< " acquired the lock."<<endl;
-									sendReply(1);	
+									cout<<"Released. Mailbox "<<client->mailbox<< " acquired the lock."<<endl;
+									
+    								sendReply(1);
+    								
+    								outPktHdr.to = client->machineID;
+    								outMailHdr.to = client->mailbox;
+    								cout<<"client from wait queue acquires now!!"<<endl;
+    								sendReply(1);
 							}
 						}
 					}
@@ -372,12 +412,15 @@ void server(){
 			cout<<"Create CV."<<endl;
 				found = false;
 				error = false;
+				int foundIndex;
 				//check if cv with the same name exists
 				for (int i=0; i<server_cv_counter; i++){
 					if (strcmp (name, server_cvs[i].name) == 0){
-						cout<<"CV with this name already exists. Cannot create lock."<<endl;
+						cout<<"CV with this name already exists. Retrieving CV."<<endl;
 						found = true;
-					}
+						foundIndex = i;
+						//cout<<"***CV foundIndex: "<<foundIndex<<" my name is "<<name<<" compared to "<<server_cvs[i].name<<endl;
+					}	
 				}
 				//check if array is full
 				if (server_cv_counter>=200){
@@ -385,19 +428,26 @@ void server(){
 					error = true;
 				}
 				//if name is ok and array is not full create cv
-				if (found == false && error == false){
-					server_cvs[server_cv_counter].name = new char[30];
-  					sprintf(server_cvs[server_cv_counter].name, "%s", name);
-					server_cvs[server_cv_counter].isToBeDeleted = false;
-					server_cvs[server_cv_counter].machineID = -1;
-					server_cvs[server_cv_counter].mailbox = -1;
-					server_cvs[server_cv_counter].usage_counter = 0;
-					server_cvs[server_cv_counter].cvWaitQueue = new List();	
-					server_cvs[server_cv_counter].id = server_cv_counter;
-					server_cvs[server_cv_counter].deleted = false;
-					server_cvs[server_cv_counter].serverConditionLock = -1;
-					sendReply(server_cv_counter);
-					server_cv_counter++;
+				if (error == false){
+					if(found == false){
+						server_cvs[server_cv_counter].name = new char[30];
+  						sprintf(server_cvs[server_cv_counter].name, "%s", name);
+						server_cvs[server_cv_counter].isToBeDeleted = false;
+						server_cvs[server_cv_counter].machineID = -1;
+						server_cvs[server_cv_counter].mailbox = -1;
+						server_cvs[server_cv_counter].usage_counter = 0;
+						server_cvs[server_cv_counter].cvWaitQueue = new List();	
+						server_cvs[server_cv_counter].id = server_cv_counter; //index
+						server_cvs[server_cv_counter].deleted = false;
+						server_cvs[server_cv_counter].serverConditionLock = -1;
+						sendReply(server_cv_counter);
+						//cout<<"***CV counter before increment: "<<server_cv_counter<<endl;
+						server_cv_counter++; //index
+						//cout<<"***CV counter after increment: "<<server_cv_counter<<endl;
+					}
+					else{
+						sendReply(foundIndex);
+					}
 				}
 				else{
 				//if not send fail 
@@ -475,7 +525,7 @@ void server(){
 						sendReply(-1);
 					}
 					else{
-					//if wrong waiting lock don;t wait
+					//if wrong waiting lock dont wait
 						if (server_cvs[cv_index].serverConditionLock != lock_index && server_cvs[cv_index].serverConditionLock != -1){
 							cout<<"Wrong waiting lock index"<<endl;
 							sendReply(-1);
@@ -490,22 +540,46 @@ void server(){
 								waiting_client->machineID = inPktHdr.from;
 								waiting_client->mailbox = inMailHdr.from;
 								server_cvs[cv_index].cvWaitQueue->Append((void*)waiting_client);
-								sendReply(1);
-								//locks wait queue is not empty
+								
 								if (!(server_locks[lock_index].lockWaitQueue->IsEmpty())){
-									cout<<"Lock waitlist is not empty"<<endl;
-									waiting_client = (WaitingClient*)server_locks[lock_index].lockWaitQueue->Remove();
-									server_locks[lock_index].machineID = waiting_client->machineID;
-									server_locks[lock_index].mailbox = waiting_client->mailbox;
-									cout<<"Machine "<<server_locks[lock_index].machineID<<" got the lock "<< server_locks[lock_index].name<<endl;
-									server_locks[lock_index].usage_counter--;			
-								}
-								else{
-									server_locks[lock_index].machineID = -1;
-									server_locks[lock_index].mailbox = -1;
-									server_locks[lock_index].usage_counter=0;
-									server_locks[lock_index].state = 1;
-								}
+								 	WaitingClient *client;
+								    client = (WaitingClient*)server_locks[lock_index].lockWaitQueue->Remove();
+									server_locks[lock_index].machineID = client->machineID;
+									server_locks[lock_index].mailbox = client->mailbox;
+									server_locks[lock_index].state = 0; //not available
+									cout<<"Wait- released the lock. Mailbox "<<client->mailbox<< " acquired the lock."<<endl;
+
+									//waiting_client = (WaitingClient*)server_locks[lock_index].lockWaitQueue->Remove();
+									outPktHdr.to = client->machineID;
+									outMailHdr.to = client->mailbox;
+									sendReply(1);
+ 								}
+ 								else{
+ 									server_locks[lock_index].machineID = -1;
+ 									server_locks[lock_index].mailbox = -1;
+ 									server_locks[lock_index].usage_counter=0;
+ 									server_locks[lock_index].state = 1;
+ 								}
+								//locks wait queue is not empty
+								
+							// 	if (!(server_locks[lock_index].lockWaitQueue->IsEmpty())){
+// 									cout<<"Lock waitlist is not empty"<<endl;
+// 									waiting_client = (WaitingClient*)server_locks[lock_index].lockWaitQueue->Remove();
+// 									outPktHdr.to = waiting_client->machineID;
+//     								outMailHdr.to = waiting_client->mailbox;
+// 									sendReply(1);
+// 									
+// 									// server_locks[lock_index].machineID = waiting_client->machineID;
+// // 									server_locks[lock_index].mailbox = waiting_client->mailbox;
+// // 									cout<<"Machine "<<server_locks[lock_index].machineID<<" got the lock "<< server_locks[lock_index].name<<endl;
+// 									server_locks[lock_index].usage_counter--;			
+// 								}
+// 								else{
+// 									server_locks[lock_index].machineID = -1;
+// 									server_locks[lock_index].mailbox = -1;
+// 									server_locks[lock_index].usage_counter=0;
+// 									server_locks[lock_index].state = 1;
+// 								}
 						}
 					}	
 				}		
@@ -565,6 +639,7 @@ void server(){
 						//add client to wait list of lock and remove cv from cv queue
 							server_cvs[cv_index].usage_counter--;
 							waiting_client = (WaitingClient*)server_cvs[cv_index].cvWaitQueue->Remove();
+							
 							server_locks[lock_index].lockWaitQueue->Append((void*)waiting_client);
 							//if cv wait is empty set lock index to -1
 							if (server_cvs[cv_index].cvWaitQueue->IsEmpty()){

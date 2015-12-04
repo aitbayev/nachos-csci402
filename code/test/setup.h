@@ -1,7 +1,7 @@
 #include "syscall.h"
 
-typedef enum {busy, available, onBreak} ClerkState;
-typedef enum { false, true } bool;
+/*typedef enum {busy, available, onBreak} ClerkState; /*0 is busy, 1 is available, 2 is onbreak*/
+typedef enum {false, true} bool;
 
 /*customer struct*/
 struct Customer{
@@ -25,10 +25,10 @@ struct Customer{
 struct CustomerData{
 	char name[20];
 	int SSN; /* social security number */
-	bool application;/* whether application clerk filed the application */
-	bool picture; /*whether picture clerk took a picture and filed it */
-	bool verified; /*whether passport clerk verified and filed it */
-	bool got_passport; /*whether customer received his/her passport from cashier */
+	int application;/* whether application clerk filed the application */
+	int picture; /*whether picture clerk took a picture and filed it */
+	int verified; /*whether passport clerk verified and filed it */
+	int got_passport; /*whether customer received his/her passport from cashier */
 	
 };
 
@@ -39,7 +39,7 @@ struct ApplicationClerk{
 	int bribeLineCount;
 	int money;
 	int ssn;
-	ClerkState state;
+	int state;
 	bool bribe; /*bribed or not*/
 };
 
@@ -51,7 +51,7 @@ struct PictureClerk{
 	int money;
 	int ssn;
 	bool pic;
-	ClerkState state;
+	int state;
 	bool bribe; /*bribed or not*/
 };
 
@@ -63,7 +63,7 @@ struct PassportClerk{
 	int money;
 	int ssn;
 	bool bribe; /*bribed or not*/
-	ClerkState state;
+	int state;
 };
 
 /*cashier struct- we said that cashier cannot be bribed*/
@@ -72,7 +72,7 @@ struct Cashier{
 	int lineCount;
 	int money;
 	int ssn;
-	ClerkState state;
+	int state;
 };
 
 /*manager struct*/
@@ -92,8 +92,10 @@ struct ApplicationClerk application_clerks[10];
 struct PictureClerk picture_clerks[10];
 struct PassportClerk passport_clerks[10];
 struct Cashier cashiers[10];
+struct Manager manager;
 
 /*Lock stuff*/
+
 
 int AppClerkLock[10]; /*lock used to interact- at the register*/
 int AppClerkCV[10]; /*cv used to interact- at the register*/
@@ -138,14 +140,14 @@ void setup(){
 /*App Clerk Stuff*/
 	
 	application_clerks[0].name = "AppClerk1";
-	application_clerks[0].lineCount = 0;
-  	application_clerks[0].bribeLineCount = 0;
- 	application_clerks[0].state = available;
+	application_clerks[0].lineCount = CreateMV("App1LineCount", sizeof("App1LineCount"));
+  	application_clerks[0].bribeLineCount = CreateMV("App1BribeLineCount", sizeof("App1BribeLineCount"));;
+ 	application_clerks[0].state = CreateMV("App1State", sizeof("App1State"));
  	
  	application_clerks[1].name = "AppClerk2";	
-  	application_clerks[1].lineCount = 0;
-  	application_clerks[1].bribeLineCount = 0;
-  	application_clerks[1].state = available;
+  	application_clerks[1].lineCount = CreateMV("App2LineCount", sizeof("App2LineCount"));
+  	application_clerks[1].bribeLineCount = CreateMV("App2BribeLineCount", sizeof("App2BribeLineCount"));;
+  	application_clerks[1].state = CreateMV("App2State", sizeof("App2State"));
 	
 	AppClerkLock[0] = CreateLock("AppClerkLock1", sizeof("AppClerkLock1"));
 	AppClerkLock[1] = CreateLock("AppClerkLock2", sizeof("AppClerkLock2"));
@@ -159,7 +161,7 @@ void setup(){
 	AppClerkLineCV[0] = CreateCondition("AppClerkLineCV1", sizeof("AppClerkLineCV1"));
 	AppClerkLineCV[1] = CreateCondition("AppClerkLineCV2", sizeof("AppClerkLineCV2"));
 	
-	PickAppClerkLineLock = CreateLock("PicAppClerkLineLock", sizeof("PicAppClerkLineLock"));
+	PickAppClerkLineLock = CreateLock("PickAppClerkLineLock", sizeof("PickAppClerkLineLock"));
 	
 	AppClerkBribeLineLock[0] = CreateLock("AppClerkBribeLineLock1", sizeof("AppClerkBribeLineLock1"));
 	AppClerkBribeLineLock[1] = CreateLock("AppClerkBribeLineLock2", sizeof("AppClerkBribeLineLock2"));
@@ -173,14 +175,14 @@ void setup(){
 
 /*******Pic Clerk Stuff********/
 	picture_clerks[0].name = "PicClerk1";
-	picture_clerks[0].lineCount = 0;
-  	picture_clerks[0].bribeLineCount = 0;
- 	picture_clerks[0].state = available;
+	picture_clerks[0].lineCount = CreateMV("Pic1LineCount", sizeof("Pic1LineCount"));
+  	picture_clerks[0].bribeLineCount = CreateMV("Pic1BribeLineCount", sizeof("Pic1BribeLineCount"));
+ 	picture_clerks[0].state = CreateMV("Pic1State", sizeof("Pic1State"));
  	
  	picture_clerks[1].name = "PicClerk2";	
-  	picture_clerks[1].lineCount = 0;
-  	picture_clerks[1].bribeLineCount = 0;
-  	picture_clerks[1].state = available;
+  	picture_clerks[1].lineCount = CreateMV("Pic2LineCount", sizeof("Pic2LineCount"));
+  	picture_clerks[1].bribeLineCount = CreateMV("Pic2BribeLineCount", sizeof("Pic2BribeLineCount"));
+  	picture_clerks[1].state = CreateMV("Pic2State", sizeof("Pic2State"));
 	
 	PicClerkLock[0] = CreateLock("PicClerkLock1", sizeof("PicClerkLock1"));
 	PicClerkLock[1] = CreateLock("PicClerkLock2", sizeof("PicClerkLock2"));
@@ -194,7 +196,7 @@ void setup(){
 	PicClerkLineCV[0] = CreateCondition("PicClerkLineCV1", sizeof("PicClerkLineCV1"));
 	PicClerkLineCV[1] = CreateCondition("PicClerkLineCV2", sizeof("PicClerkLineCV2"));
 	
-	PickPicClerkLineLock = CreateLock("PickPicClerkLineLock", sizeof("PiclPicClerkLineLock"));
+	PickPicClerkLineLock = CreateLock("PickPicClerkLineLock", sizeof("PickPicClerkLineLock"));
 	
 	PicClerkBribeLineLock[0] = CreateLock("PicClerkBribeLineLock1", sizeof("PicClerkBribeLineLock1"));
 	PicClerkBribeLineLock[1] = CreateLock("PicClerkBribeLineLock2", sizeof("PicClerkBribeLineLock2"));
@@ -208,18 +210,18 @@ void setup(){
 
 /*******Pass Clerk Stuff********/
 	passport_clerks[0].name = "PassClerk1";
-	passport_clerks[0].lineCount = 0;
-  	passport_clerks[0].bribeLineCount = 0;
- 	passport_clerks[0].state = available;
+	passport_clerks[0].lineCount = CreateMV("Pass1LineCount", sizeof("Pass1LineCount"));
+  	passport_clerks[0].bribeLineCount = CreateMV("Pass1BribeLineCount", sizeof("Pass1BribeLineCount"));
+ 	passport_clerks[0].state = CreateMV("Pass1State", sizeof("Pass1State"));
  	
  	passport_clerks[1].name = "PassClerk2";	
-  	passport_clerks[1].lineCount = 0;
-  	passport_clerks[1].bribeLineCount = 0;
-  	passport_clerks[1].state = available;
+  	passport_clerks[1].lineCount = CreateMV("Pass2LineCount", sizeof("Pass2LineCount"));
+  	passport_clerks[1].bribeLineCount = CreateMV("Pass2BribeLineCount", sizeof("Pass2BribeLineCount"));
+  	passport_clerks[1].state = CreateMV("Pass2State", sizeof("Pass2State"));
 	
 	PassClerkLock[0] = CreateLock("PassClerkLock1", sizeof("PassClerkLock1"));
 	PassClerkLock[1] = CreateLock("PassClerkLock2", sizeof("PassClerkLock2"));
-	
+
 	PassClerkCV[0] = CreateCondition("PassClerkCV1", sizeof("PassClerkCV1"));
 	PassClerkCV[1] = CreateCondition("PassClerkCV2", sizeof("PassClerkCV2"));
 	
@@ -242,18 +244,18 @@ void setup(){
 
 /*******Pass Clerk Stuff********/
 
-/*******Cashier Clerk Stuff********/
+/*******Cashier Stuff********/
 	cashiers[0].name = "Cashier1";
-	cashiers[0].lineCount = 0;
- 	cashiers[0].state = available;
+	cashiers[0].lineCount = CreateMV("Cashier1LineCount", sizeof("Cashier1LineCount"));
+ 	cashiers[0].state = CreateMV("Cashier1State", sizeof("Cashier1State"));
  	
  	cashiers[1].name = "Cashier2";	
-  	cashiers[1].lineCount = 0;
-  	cashiers[1].state = available;
+  	cashiers[1].lineCount = CreateMV("Cashier2LineCount", sizeof("Cashier2LineCount"));
+  	cashiers[1].state = CreateMV("Cashier2State", sizeof("Cashier2State"));
 	
 	CashierLock[0] = CreateLock("CashierLock1", sizeof("CashierLock1"));
 	CashierLock[1] = CreateLock("CashierLock2", sizeof("CashierLock2"));
-	
+
 	CashierCV[0] = CreateCondition("CashierCV1", sizeof("CashierCV1"));
 	CashierCV[1] = CreateCondition("CashierCV2", sizeof("CashierCV2"));
 	
@@ -267,30 +269,114 @@ void setup(){
 	
 	MyLineCashier = CreateMV("myLineCashier", sizeof("myLineCashier"));
 
-/*******Cashier Clerk Stuff********/
+/*******Cashier Stuff********/
+
+/*******Manager Stuff********/
+	manager.name = "Manager";
+	manager.appClerkMoney = CreateMV("managerAppClerkMoney", sizeof("managerAppClerkMoney"));
+	manager.picClerkMoney = CreateMV("managerPicClerkMoney", sizeof("managerPicClerkMoney"));
+	manager.passClerkMoney = CreateMV("managerPassClerkMoney", sizeof("managerPassClerkMoney"));
+	manager.cashierMoney = CreateMV("managerCashierMoney", sizeof("managerCashierMoney"));
+	manager.totalMoney = CreateMV("managerTotalMoney", sizeof("managerTotalMoney"));
+
+/*******Manager Stuff********/
 
 /*******Customer Creation Stuf*********/
 	customer_counter = CreateMV("customer_counter", sizeof("customer_counter"));
 	
+	customer_data[0].SSN = CreateMV("CustomerData1SSN", sizeof("CustomerData1SSN"));
+	customer_data[0].application = CreateMV("CustomerData1App", sizeof("CustomerData1App"));
+	customer_data[0].picture = CreateMV("CustomerData1Pic", sizeof("CustomerData1Pic"));
+	customer_data[0].verified = CreateMV("CustomerData1Ver", sizeof("CustomerData1Ver"));
+	customer_data[0].got_passport = CreateMV("CustomerData1GotPassport", sizeof("CustomerData1GotPassport"));
+	
+	customer_data[1].SSN = CreateMV("CustomerData2SSN", sizeof("CustomerData2SSN"));
+	customer_data[1].application = CreateMV("CustomerData2App", sizeof("CustomerData2App"));
+	customer_data[1].picture = CreateMV("CustomerData2Pic", sizeof("CustomerData2Pic"));
+	customer_data[1].verified = CreateMV("CustomerData2Ver", sizeof("CustomerData2Ver"));
+	customer_data[1].got_passport = CreateMV("CustomerData2GotPassport", sizeof("CustomerData2GotPassport"));
+	
+	customer_data[2].SSN = CreateMV("CustomerData3SSN", sizeof("CustomerData3SSN"));
+	customer_data[2].application = CreateMV("CustomerData3App", sizeof("CustomerData3App"));
+	customer_data[2].picture = CreateMV("CustomerData1Pic", sizeof("CustomerData3Pic"));
+	customer_data[2].verified = CreateMV("CustomerData3Ver", sizeof("CustomerData3Ver"));
+	customer_data[2].got_passport = CreateMV("CustomerData3GotPassport", sizeof("CustomerData3GotPassport"));
+	
+	customer_data[3].SSN = CreateMV("CustomerData4SSN", sizeof("CustomerData4SSN"));
+	customer_data[3].application = CreateMV("CustomerData4App", sizeof("CustomerData4App"));
+	customer_data[3].picture = CreateMV("CustomerData4Pic", sizeof("CustomerData4Pic"));
+	customer_data[3].verified = CreateMV("CustomerData4Ver", sizeof("CustomerData4Ver"));
+	customer_data[3].got_passport = CreateMV("CustomerData4GotPassport", sizeof("CustomerData4GotPassport"));
+	
+	customer_data[4].SSN = CreateMV("CustomerData5SSN", sizeof("CustomerData5SSN"));
+	customer_data[4].application = CreateMV("CustomerData5App", sizeof("CustomerData5App"));
+	customer_data[4].picture = CreateMV("CustomerData5Pic", sizeof("CustomerData5Pic"));
+	customer_data[4].verified = CreateMV("CustomerData5Ver", sizeof("CustomerData5Ver"));
+	customer_data[4].got_passport = CreateMV("CustomerData5GotPassport", sizeof("CustomerData5GotPassport"));
+	
+	customer_data[5].SSN = CreateMV("CustomerData6SSN", sizeof("CustomerData6SSN"));
+	customer_data[5].application = CreateMV("CustomerData6App", sizeof("CustomerData6App"));
+	customer_data[5].picture = CreateMV("CustomerData6Pic", sizeof("CustomerData6Pic"));
+	customer_data[5].verified = CreateMV("CustomerData6Ver", sizeof("CustomerData6Ver"));
+	customer_data[5].got_passport = CreateMV("CustomerData6GotPassport", sizeof("CustomerData6GotPassport"));
+	
+	customer_data[6].SSN = CreateMV("CustomerData7SSN", sizeof("CustomerData7SSN"));
+	customer_data[6].application = CreateMV("CustomerData7App", sizeof("CustomerData7App"));
+	customer_data[6].picture = CreateMV("CustomerData7Pic", sizeof("CustomerData7Pic"));
+	customer_data[6].verified = CreateMV("CustomerData7Ver", sizeof("CustomerData7Ver"));
+	customer_data[6].got_passport = CreateMV("CustomerData7GotPassport", sizeof("CustomerData7GotPassport"));
+	
+	customer_data[7].SSN = CreateMV("CustomerData8SSN", sizeof("CustomerData8SSN"));
+	customer_data[7].application = CreateMV("CustomerData8App", sizeof("CustomerData8App"));
+	customer_data[7].picture = CreateMV("CustomerData8Pic", sizeof("CustomerData8Pic"));
+	customer_data[7].verified = CreateMV("CustomerData8Ver", sizeof("CustomerData8Ver"));
+	customer_data[7].got_passport = CreateMV("CustomerData8GotPassport", sizeof("CustomerData8GotPassport"));
+	
+	customer_data[8].SSN = CreateMV("CustomerData9SSN", sizeof("CustomerData9SSN"));
+	customer_data[8].application = CreateMV("CustomerData9App", sizeof("CustomerData9App"));
+	customer_data[8].picture = CreateMV("CustomerData9Pic", sizeof("CustomerData9Pic"));
+	customer_data[8].verified = CreateMV("CustomerData9Ver", sizeof("CustomerData9Ver"));
+	customer_data[8].got_passport = CreateMV("CustomerData9GotPassport", sizeof("CustomerData9GotPassport"));
+
 	customers[0].name = "customer1";
-	customers[0].money = 1000;
+	customers[0].money = 1600;
 	customers[0].ssn = 0;
 	
 	customers[1].name = "customer2";
-	customers[1].money = 1000;
+	customers[1].money = 1600;
 	customers[1].ssn = 1;
 	
 	customers[2].name = "customer3";
-	customers[2].money = 1000;
+	customers[2].money = 1600;
 	customers[2].ssn = 2;
 	
 	customers[3].name = "customer4";
-	customers[3].money = 1000;
+	customers[3].money = 1600;
 	customers[3].ssn = 3;
 	
 	customers[4].name = "customer5";
-	customers[4].money = 1000;
+	customers[4].money = 1600;
 	customers[4].ssn = 4;
+	
+	customers[5].name = "customer6";
+	customers[5].money = 1600;
+	customers[5].ssn = 5;
+	
+	customers[6].name = "customer7";
+	customers[6].money = 1600;
+	customers[6].ssn = 6;
+	
+	customers[7].name = "customer8";
+	customers[7].money = 1600;
+	customers[7].ssn = 7;
+	
+	customers[8].name = "customer9";
+	customers[8].money = 1600;
+	customers[8].ssn = 8;
+	
+	customers[9].name = "customer10";
+	customers[9].money = 1600;
+	customers[9].ssn = 9;
 
 	customer_index = CreateMV("customer_index", sizeof("customer_index"));
 }

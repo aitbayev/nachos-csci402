@@ -24,11 +24,12 @@
 #include "copyright.h"
 #include "system.h"
 #include "syscall.h"
+//#include "../test/setup.h"
 #include <stdio.h>
 #include <iostream>
 #include <sstream>
 #include "../network/post.h"
-
+#include <time.h>
 
 using namespace std;
 
@@ -266,6 +267,8 @@ void Exit_Syscall(){
 		processLock -> Release();
 		currentThread -> Finish();
 	}
+	
+	currentThread->Finish();
 }
 
 
@@ -276,7 +279,7 @@ void Yield_Syscall(){
 //create lock syscall implementation
 int CreateLock_Syscall(unsigned int name, int len){
 // #ifdef NETWORK
-	cout<<"In Create Lock"<<endl;
+	//cout<<"In Create Lock"<<endl;
 	char *buf = new char[len+1];
 	
 		if (len < 1 || len >30){
@@ -287,7 +290,8 @@ int CreateLock_Syscall(unsigned int name, int len){
 	stringstream ss;
      
     ss<<"CL "<<buf;
- 	char *msg = (char *) ss.str().c_str();
+ 	char *msg = new char[40];
+ 	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
@@ -297,8 +301,8 @@ int CreateLock_Syscall(unsigned int name, int len){
     // To: destination machine, mailbox 0
     // From: our machine, reply to: mailbox 1
     outPktHdr.to = 0;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
+	outMailHdr.to = 0;
+    outMailHdr.from = currentThread->mailboxNum;
     outMailHdr.length = strlen(msg) + 1;
 
     // Send the first message
@@ -310,16 +314,17 @@ int CreateLock_Syscall(unsigned int name, int len){
     }
 
     // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+    postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
     
     int index = atoi(buffer);
+    
     if (index == -1){
     	printf("ERROR! Couldn't create lock with name %s \n", buf);
     	}
     else{
-    	printf("Lock with name %s at index %d was created \n", buf, index);
+    	printf("Lock with name %s at index %d was created/retrieved \n", buf, index);
     }
-    fflush(stdout);	
+    fflush(stdout);
     
     return index;
     
@@ -380,7 +385,8 @@ void DestroyLock_Syscall(int index){
     cout<<"In Destroy Lock"<<endl;
      
     ss<<"DL "<<index;
- 	char *msg = (char *) ss.str().c_str();
+ 	char *msg = new char[40];
+	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
@@ -390,8 +396,8 @@ void DestroyLock_Syscall(int index){
     // To: destination machine, mailbox 0
     // From: our machine, reply to: mailbox 1
     outPktHdr.to = 0;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
+	outMailHdr.to = 0;
+    outMailHdr.from = currentThread->mailboxNum;
     outMailHdr.length = strlen(msg) + 1;
 
     // Send the first message
@@ -403,7 +409,7 @@ void DestroyLock_Syscall(int index){
     }
 
     // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+    postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
     
     int result = atoi(buffer);
     
@@ -416,8 +422,6 @@ void DestroyLock_Syscall(int index){
     fflush(stdout);	
     
    
-
-
 	// locksTableLock->Acquire();
 // 	if (index<0 || index >= maxLockTableSize){
 // 		cout<<"Index is out of scope"<<endl;
@@ -453,10 +457,11 @@ void Acquire_Syscall(int index){
 
 	stringstream ss;
     
-    cout<<"In Acquire Lock"<<endl;
+    //cout<<"In Acquire Lock"<<endl;
      
     ss<<"AL "<<index;
- 	char *msg = (char *) ss.str().c_str();
+ 	char *msg = new char[40];
+	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
@@ -466,8 +471,8 @@ void Acquire_Syscall(int index){
     // To: destination machine, mailbox 0
     // From: our machine, reply to: mailbox 1
     outPktHdr.to = 0;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
+	outMailHdr.to = 0;
+    outMailHdr.from = currentThread->mailboxNum;
     outMailHdr.length = strlen(msg) + 1;
 
     // Send the first message
@@ -479,18 +484,21 @@ void Acquire_Syscall(int index){
     }
 
     // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+    postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
     
     int result = atoi(buffer);
-    if (result == -1){
-    	printf("Couldn't acquire a lock with index %d \n", index);
+    if (result == 1){
+    	printf("Acquired a lock with index %d \n", index);
+
+    }
+    /*else if (result == -2){
+    	//currentThread->Sleep();
+    	printf("Couldn't acquire a lock with index %d- asleep(lock is busy) \n", index);
     }
     else{
-    	printf("Acquired a lock with index %d \n", index);
-    }
+    	printf("Couldn't acquire a lock with index %d \n", index);
+    }*/
     fflush(stdout);	
-
-
 
 	// locksTableLock->Acquire();
 // 
@@ -523,10 +531,11 @@ void Release_Syscall(int index){
 
 	stringstream ss;
     
-    cout<<"In Release lock"<<endl;
+    //cout<<"In Release lock"<<endl;
      
     ss<<"RL "<<index;
- 	char *msg = (char *) ss.str().c_str();
+ 	char *msg = new char[40];
+	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
@@ -536,8 +545,8 @@ void Release_Syscall(int index){
     // To: destination machine, mailbox 0
     // From: our machine, reply to: mailbox 1
     outPktHdr.to = 0;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
+	outMailHdr.to = 0;
+    outMailHdr.from = currentThread->mailboxNum;
     outMailHdr.length = strlen(msg) + 1;
 
     // Send the first message
@@ -549,14 +558,19 @@ void Release_Syscall(int index){
     }
 
     // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+    postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
+    
+    
     
     int result = atoi(buffer);
     if (result == -1){
-    	printf("Couldn't release a lock with index %d \n", index);
+    	printf("Couldn't release a lock with index %d \n", index); //uncomment after testing
     }
     else if (result == 2){
     	printf("Lock %d was deleted \n", index);
+    }
+    else if (result == -2){
+    	printf("Woke up waiting thread and gave it Lock %d \n", index);
     }
     else {
     	printf("Released Lock with index %d \n", index);
@@ -606,10 +620,11 @@ int CreateCondition_Syscall(unsigned int name, int len){
 	copyin(name, len, buf);
 	stringstream ss;
     
-    cout<<"In create CV"<<endl;
+    //cout<<"In create CV"<<endl;
      
     ss<<"CC "<<buf;
- 	char *msg = (char *) ss.str().c_str();
+    char *msg = new char[40];
+ 	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
@@ -619,8 +634,8 @@ int CreateCondition_Syscall(unsigned int name, int len){
     // To: destination machine, mailbox 0
     // From: our machine, reply to: mailbox 1
     outPktHdr.to = 0;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
+	outMailHdr.to = 0;
+    outMailHdr.from = currentThread->mailboxNum;
     outMailHdr.length = strlen(msg) + 1;
 
     // Send the first message
@@ -632,14 +647,14 @@ int CreateCondition_Syscall(unsigned int name, int len){
     }
 
     // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+    postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
     
     int index = atoi(buffer);
     if (index == -1){
     	printf("ERROR! Couldn't create CV with name %s \n", buf);
     }
     else{
-    	printf("CV with name %s at index %d was created \n", buf, index);
+    	printf("CV with name %s at index %d was created/retrieved \n", buf, index);
     }
     fflush(stdout);	
     
@@ -699,7 +714,8 @@ void DestroyCondition_Syscall(int index){
     cout<<"In destroy CV"<<endl;
      
     ss<<"DC "<<index;
- 	char *msg = (char *) ss.str().c_str();
+ 	char *msg = new char[40];
+	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
@@ -709,8 +725,8 @@ void DestroyCondition_Syscall(int index){
     // To: destination machine, mailbox 0
     // From: our machine, reply to: mailbox 1
     outPktHdr.to = 0;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
+	outMailHdr.to = 0;
+    outMailHdr.from = currentThread->mailboxNum;
     outMailHdr.length = strlen(msg) + 1;
 
     // Send the first message
@@ -722,7 +738,7 @@ void DestroyCondition_Syscall(int index){
     }
 
     // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+    postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
     
     int result = atoi(buffer);
     
@@ -733,8 +749,6 @@ void DestroyCondition_Syscall(int index){
     	printf("Destroyed CV with index %d \n", index);
     }
     fflush(stdout);	
-    
-
 
 	// conditionsTableLock->Acquire();
 // 	if (index<0 || index >= maxConditionTableSize){
@@ -771,7 +785,8 @@ void Wait_Syscall(int lk, int cv){
      
     ss<<"WC "<<lk<<" "<<cv;
     
- 	char *msg = (char *) ss.str().c_str();
+ 	char *msg = new char[40];
+	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
@@ -781,8 +796,8 @@ void Wait_Syscall(int lk, int cv){
     // To: destination machine, mailbox 0
     // From: our machine, reply to: mailbox 1
     outPktHdr.to = 0;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
+	outMailHdr.to = 0;
+    outMailHdr.from = currentThread->mailboxNum;
     outMailHdr.length = strlen(msg) + 1;
 
     // Send the first message
@@ -794,16 +809,16 @@ void Wait_Syscall(int lk, int cv){
     }
 
     // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+    postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
     
     int result = atoi(buffer);
     
     if (result == -1){
     	printf("Couldn't wait on lock %d , CV with index %d \n", lk, cv);
     }
-    else{
-    	printf("Waiting on lock %d , CV with index %d \n", lk, cv);
-    }
+    // else{
+//     	printf("Waiting on lock %d , CV with index %d \n", lk, cv);
+//     }
     fflush(stdout);	
     
 	// conditionsTableLock -> Acquire();
@@ -852,11 +867,12 @@ void Wait_Syscall(int lk, int cv){
 void Signal_Syscall(int lk, int cv){
 	stringstream ss;
     
-    cout<<"In Signal CV"<<endl;
+    //cout<<"In Signal CV"<<endl;
      
     ss<<"SC "<<lk<<" "<<cv;
     
- 	char *msg = (char *) ss.str().c_str();
+ 	char *msg = new char[40];
+	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
@@ -866,8 +882,8 @@ void Signal_Syscall(int lk, int cv){
     // To: destination machine, mailbox 0
     // From: our machine, reply to: mailbox 1
     outPktHdr.to = 0;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
+	outMailHdr.to = 0;
+    outMailHdr.from = currentThread->mailboxNum;
     outMailHdr.length = strlen(msg) + 1;
 
     // Send the first message
@@ -879,7 +895,7 @@ void Signal_Syscall(int lk, int cv){
     }
 
     // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+    postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
     
     int result = atoi(buffer);
     
@@ -944,11 +960,12 @@ void Signal_Syscall(int lk, int cv){
 void Broadcast_Syscall(int lk, int cv){
 	stringstream ss;
     
-    cout<<"In Broadcast CV"<<endl;
+    //cout<<"In Broadcast CV"<<endl;
      
     ss<<"BC "<<lk<<" "<<cv;
     
- 	char *msg = (char *) ss.str().c_str();
+ 	char *msg = new char[40];
+	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
@@ -958,8 +975,8 @@ void Broadcast_Syscall(int lk, int cv){
     // To: destination machine, mailbox 0
     // From: our machine, reply to: mailbox 1
     outPktHdr.to = 0;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
+	outMailHdr.to = 0;
+    outMailHdr.from = currentThread->mailboxNum;
     outMailHdr.length = strlen(msg) + 1;
 
     // Send the first message
@@ -971,7 +988,7 @@ void Broadcast_Syscall(int lk, int cv){
     }
 
     // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+    postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
     
     int result = atoi(buffer);
     
@@ -1050,16 +1067,20 @@ int CreateMV_Syscall(unsigned int name, int len){
  	copyin(name,len,buf); 
     stringstream ss;
          
-    ss<<"CM "<<buf;
-    char *msg = (char *)ss.str().c_str();
+    ss<<"CCM "<<buf;
+    char *msg = new char[40];
+ 	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
     char buffer[MaxMailSize];
 
+	int server_num = rand()%2;
+
+	//cout<<"Sending to "<<server_num<<endl;
        outPktHdr.to = 0;	//destination machine id 	
-       outMailHdr.to = 0;   //destination mail box
-       outMailHdr.from = 0; //mail box reply to 
+	   outMailHdr.to = 0;
+       outMailHdr.from = currentThread->mailboxNum;
        outMailHdr.length = strlen(msg) + 1;
  
 //     // Send the first message
@@ -1071,11 +1092,11 @@ int CreateMV_Syscall(unsigned int name, int len){
      }
  
    // Wait for the first message from the other machine
-   	   postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+   	   postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
    	   int index = atoi(buffer);
    	   //if successfully created 
    	   if (index != -1){
-      		printf("Created MV at index %s with name %s \n",buffer, buf);
+      		printf("Created/retrieved MV at index %d with name %s \n",index, buf);
        }
        else{
 			printf("Couldn't create MV with name %s, wrong name or array is full \n", buf);
@@ -1090,7 +1111,8 @@ int DestroyMV_Syscall(int id){
     stringstream ss;
          
     ss<<"DM "<<id;
- 	char *msg = (char *) ss.str().c_str();
+ 	char *msg = new char[40];
+	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
@@ -1100,8 +1122,8 @@ int DestroyMV_Syscall(int id){
     // To: destination machine, mailbox 0
     // From: our machine, reply to: mailbox 1
     outPktHdr.to = 0;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
+	outMailHdr.to = 0;
+    outMailHdr.from = currentThread->mailboxNum;
     outMailHdr.length = strlen(msg) + 1;
 
     // Send the first message
@@ -1113,7 +1135,7 @@ int DestroyMV_Syscall(int id){
     }
 
     // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+    postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
     int index = atoi(buffer);
 	if (index != -1){
     	printf("MV at index %d successfully deleted\n",id);
@@ -1131,10 +1153,11 @@ int SetMV_Syscall(int id, int value){
  	
     stringstream ss;
     
-    cout<<"In set MV"<<endl;
+    //cout<<"In set MV"<<endl;
      
-    ss<<"SM "<<id<<" "<<value;
- 	char *msg = (char *) ss.str().c_str();
+    ss<<"CSM "<<id<<" "<<value;
+ 	char *msg = new char[40];
+	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
@@ -1144,8 +1167,8 @@ int SetMV_Syscall(int id, int value){
     // To: destination machine, mailbox 0
     // From: our machine, reply to: mailbox 1
     outPktHdr.to = 0;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
+	outMailHdr.to = 0;
+    outMailHdr.from = currentThread->mailboxNum;
     outMailHdr.length = strlen(msg) + 1;
 
     // Send the first message
@@ -1157,12 +1180,12 @@ int SetMV_Syscall(int id, int value){
     }
 
     // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+    postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
     
     int index = atoi(buffer);
     
     if (index != -1){
-    	printf("Set MV at index %d with value %d was created\n",id, value);
+    	printf("Set MV at index %d with value %d was updated\n",id, value);
     }
     else{
     	printf("Wasn't able to set MV at index %d \n", id);
@@ -1177,10 +1200,11 @@ int GetMV_Syscall(int index){
  	
     stringstream ss;
     
-    cout<<"In get MV"<<endl;
+    //cout<<"In get MV"<<endl;
      
-    ss<<"GM "<<index;
- 	char *msg = (char *) ss.str().c_str();
+    ss<<"CGM "<<index;
+ 	char *msg = new char[40];
+	strcpy(msg,(char *) ss.str().c_str());
 
 	PacketHeader outPktHdr, inPktHdr;
     MailHeader outMailHdr, inMailHdr;
@@ -1189,9 +1213,9 @@ int GetMV_Syscall(int index){
     // construct packet, mail header for original message
     // To: destination machine, mailbox 0
     // From: our machine, reply to: mailbox 1
-    outPktHdr.to = 0;		
-    outMailHdr.to = 0;
-    outMailHdr.from = 1;
+    outPktHdr.to = 0; //to server		
+	outMailHdr.to = 0;
+    outMailHdr.from = currentThread->mailboxNum;
     outMailHdr.length = strlen(msg) + 1;
 
     // Send the first message
@@ -1203,7 +1227,7 @@ int GetMV_Syscall(int index){
     }
 
     // Wait for the first message from the other machine
-    postOffice->Receive(0, &inPktHdr, &inMailHdr, buffer);
+    postOffice->Receive(currentThread->mailboxNum, &inPktHdr, &inMailHdr, buffer);
     int value = atoi(buffer);
     if (value != -1){
     	printf("Got value %d of MV at index %d \n",value, index);
@@ -1216,20 +1240,23 @@ int GetMV_Syscall(int index){
     return value;
 }
 
-void exec_thread(int vAddr) {
-  currentThread->space->InitRegisters();
-  currentThread->space->RestoreState();
-  machine->Run();
+//exec function
+void exec_thread() {
+
+  currentThread->space->InitRegisters(); //initialize register
+  currentThread->space->RestoreState(); //restore
+  machine->Run(); //run the machine
+  
 }
 
 int Exec_Syscall(unsigned int addr, int len){
 
-	//From (copied) OpenFile- open file
+	//from (copied) OpenFile- open file
 	char *buf = new char[len+1]; 
   	OpenFile *f;                  
   	int fileID;                       
   
-  // Error checking
+    //check error
 	if (!buf) {
     	printf("%s","Can't allocate kernel buffer in Exec\n");
     	return -1;
@@ -1249,27 +1276,27 @@ int Exec_Syscall(unsigned int addr, int len){
     	printf("Error opening file at %s\n", buf);
     	return -1;
   	}
-  
-  
-  	AddrSpace* processSpace = new AddrSpace(f); 
-  	processTableLock->Acquire();
-    int pID = processTable->Put(processSpace);
-  	processTableLock->Release();
-  
-  	delete f;
-
-  	Thread* newThread = new Thread(buf);
-  	newThread->space = processSpace;
-  	int threadNum = processSpace->threadTable->Put(newThread);       // add first new thread to thread table
-  	newThread->setThreadNum(threadNum);
-  	newThread->setProcessID(pID);
-  	newThread->Fork((VoidFunctionPtr)exec_thread, addr);
   	
-  	newThread->mailboxNum = mailboxCounter;
-  	printf(newThread->mailboxNum + "\n");
-  	mailboxCounter++;
+  	AddrSpace* addrSpace_process = new AddrSpace(f); //create a new address space for exec
+  	Thread* next_thread = new Thread(buf); //create a new thread
+  	
+    int given_id = processTable->Put(addrSpace_process);
+  	
+  	next_thread->space = addrSpace_process; //set space
+  	next_thread->setProcessID(given_id); //set the id
+  	
+  	int num = addrSpace_process->table_thread->Put(next_thread); //place next thread
+  	next_thread->setThreadNum(num); //set thread number
+  	
+  	//fork new thread
+  	next_thread->Fork((VoidFunctionPtr)exec_thread, addr);
+  	
+	//set mailbox number (using counter)
+  	//next_thread->mailboxNum = mailboxCounter;
+  	//mailboxCounter++; //increment the number/counter
   
-  	return pID;
+	delete f;
+  	return given_id;
 }
 
 void ExceptionHandler(ExceptionType which) {

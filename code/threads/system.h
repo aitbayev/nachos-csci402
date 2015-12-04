@@ -5,8 +5,6 @@
 // All rights reserved.  See copyright.h for copyright notice and limitation 
 // of liability and disclaimer of warranty provisions.
 
-
-
 #ifndef SYSTEM_H
 #define SYSTEM_H
 #include "copyright.h"
@@ -44,7 +42,6 @@ extern Timer *timer;				// the hardware alarm clock
 #include "machine.h"
 #include "openfile.h"
 
-extern Lock *processTableLock;
 extern Table *processTable;
 
 extern BitMap *pageMap;
@@ -64,6 +61,8 @@ extern KernelLock locks[];
 extern Lock *locksTableLock;
 extern int lockIndex;
 extern int maxLockTableSize;
+
+extern Lock *mailboxLock;
 
 //condition code
 struct KernelCV{
@@ -112,9 +111,11 @@ struct WaitingClient{
 };
 
 struct ServerRequest{
-	
-
-}
+	char *message;
+	int mailbox;
+	int machine_id;
+	bool reply_yes;	
+};
 
 extern MV MVs[100];
 extern int mv_index;
